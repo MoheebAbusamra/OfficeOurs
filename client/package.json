@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "officeours": "file:..",
+    "lucide-react": "^1.78.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.6"
