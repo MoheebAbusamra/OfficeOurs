@@ -1,0 +1,1 @@
+-- Demo data: student IDs -> groups -> schedules -> modules, instructors, slots, FAQs. Run after schema.sql.

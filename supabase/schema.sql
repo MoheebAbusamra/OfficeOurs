@@ -1,0 +1,1 @@
+-- All tables, relationships and constraints. Run first in the Supabase SQL Editor.
