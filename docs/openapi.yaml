@@ -1,1 +1,863 @@
-# API contract (OpenAPI 3): every endpoint, request body, validation and response codes; one tag per service
+# API contract (OpenAPI 3): every endpoint, request body, validation and response codes one tag per service.
+# Conventions:
+#   - Base URL: http://localhost:3000/api/v1
+#   - Auth: header "Authorization: Bearer <token>" from POST /auth/login (all endpoints except register/login/check-in)
+#   - Success: { "data": ... }  Lists: { "data": [...], "meta": { "page", "limit", "total" } }
+#   - Error:   { "error": { "code", "message", "details": [{ "field", "issue" }] } }
+#   - JSON camelCase, UUID ids, dates YYYY-MM-DD, times HH:mm, timestamps ISO 8601
+#   - 200 OK, 201 Created, 204 No Content, 400 invalid input, 401 not logged in, 403 wrong role/not owner,
+#     404 not found, 409 business rule broken, 502 external API failed, 500 server error
+openapi: 3.0.3
+info:
+  title: OfficeOurs API
+  version: 1.0.0
+  description: Office-hour booking platform. S1 Scheduling & Notifications, S2 Requests & FAQ, S3 Queue, QR & History.
+servers:
+  - url: http://localhost:3000/api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: S1 Auth
+  - name: S1 Scheduling
+  - name: S1 Notifications
+  - name: S2 Requests
+  - name: S2 FAQ
+  - name: S3 Queue
+  - name: S3 History
+
+paths:
+  # =================================================================== S1 AUTH
+  /auth/register:
+    post:
+      tags: [S1 Auth]
+      summary: Register with a university ID; role, group, modules and schedule are filled in from the registry
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [universityId, password]
+              properties:
+                universityId: { type: string, example: '241339' }
+                password: { type: string, minLength: 8, example: 'Passw0rd!' }
+      responses:
+        '201': { description: Account created, content: { application/json: { schema: { $ref: '#/components/schemas/UserResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { description: University ID not found in registry, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: This ID is already registered, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /auth/login:
+    post:
+      tags: [S1 Auth]
+      summary: Log in with university ID + password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [universityId, password]
+              properties:
+                universityId: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      token: { type: string }
+                      expiresAt: { type: string, format: date-time }
+                      user: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { description: Wrong ID or password, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /auth/logout:
+    post:
+      tags: [S1 Auth]
+      summary: End the session
+      responses:
+        '204': { description: Logged out }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/me:
+    get:
+      tags: [S1 Auth]
+      summary: Current user incl. group, modules and weekly schedule (students) or taught modules (instructors)
+      responses:
+        '200': { description: Current user, content: { application/json: { schema: { $ref: '#/components/schemas/UserResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # =================================================================== S1 SCHEDULING
+  /modules:
+    get:
+      tags: [S1 Scheduling]
+      summary: Modules for filter dropdowns (student = own modules, instructor = taught modules)
+      responses:
+        '200':
+          description: Modules
+          content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Module' } } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /instructors:
+    get:
+      tags: [S1 Scheduling]
+      summary: Instructors teaching the student's modules (filter dropdown)
+      parameters:
+        - { name: moduleId, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: Instructors
+          content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/PersonRef' } } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /slots:
+    get:
+      tags: [S1 Scheduling]
+      summary: Search active upcoming slots (#1). Students only see their modules; non-clashing slots first; holidays and weekends excluded. Instructors see their own slots.
+      parameters:
+        - { name: instructorId, in: query, schema: { type: string } }
+        - { name: moduleId, in: query, schema: { type: integer } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: q, in: query, description: 'Search instructor name, module code/name or location', schema: { type: string } }
+        - { name: status, in: query, schema: { type: string, enum: [active, cancelled] } }
+        - { $ref: '#/components/parameters/page' }
+        - { $ref: '#/components/parameters/limit' }
+      responses:
+        '200':
+          description: Slots, ranked
+          content: { application/json: { schema: { $ref: '#/components/schemas/SlotList' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [S1 Scheduling]
+      summary: Create a slot (#8, instructor). Rejects weekends, holidays, past dates and overlaps with the instructor's own slots.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SlotInput' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/SlotResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: 'Overlap / holiday / weekend (code: SLOT_OVERLAP, HOLIDAY, WEEKEND)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /slots/{id}:
+    parameters:
+      - { $ref: '#/components/parameters/id' }
+    get:
+      tags: [S1 Scheduling]
+      summary: Slot details incl. remaining capacity
+      responses:
+        '200': { description: Slot, content: { application/json: { schema: { $ref: '#/components/schemas/SlotResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [S1 Scheduling]
+      summary: Edit or cancel a slot (#8, owner only). Setting status=cancelled cancels its requests and notifies the students.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/SlotInput'
+                - type: object
+                  properties:
+                    status: { type: string, enum: [active, cancelled] }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/SlotResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: 'Overlap / holiday / weekend, or capacity below confirmed requests', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    delete:
+      tags: [S1 Scheduling]
+      summary: Delete a slot (#8, owner only). Only allowed when it has no pending/confirmed requests; otherwise cancel it.
+      responses:
+        '204': { description: Deleted }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: 'Slot has active requests (code: SLOT_HAS_REQUESTS)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /holidays:
+    get:
+      tags: [S1 Scheduling]
+      summary: Egypt holidays for a year (#15). Fetched from Calendarific on first use, then served from the cache.
+      parameters:
+        - { name: year, in: query, required: true, schema: { type: integer, example: 2026 } }
+      responses:
+        '200':
+          description: Holidays
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        date: { type: string, format: date }
+                        name: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '502': { $ref: '#/components/responses/BadGateway' }
+
+  /dashboard:
+    get:
+      tags: [S1 Scheduling]
+      summary: Instructor home (#10). Aggregates data from S1, S2 and S3.
+      responses:
+        '200':
+          description: Dashboard
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      pendingRequests: { type: integer }
+                      highPriorityPending: { type: integer }
+                      nextMeeting:
+                        type: object
+                        nullable: true
+                        properties:
+                          slotId: { type: string, format: uuid }
+                          date: { type: string, format: date }
+                          startTime: { type: string }
+                          studentName: { type: string }
+                          title: { type: string }
+                      upcomingSlots: { type: integer }
+                      stats:
+                        type: object
+                        properties:
+                          meetingsThisWeek: { type: integer }
+                          meetingsTotal: { type: integer }
+                          avgMeetingMinutes: { type: number }
+                          acceptanceRate: { type: number, description: confirmed / (confirmed + rejected) }
+                          faqDeflections: { type: integer, description: requests where the AI answered from the FAQ }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # =================================================================== S1 NOTIFICATIONS
+  /notifications:
+    get:
+      tags: [S1 Notifications]
+      summary: My notifications (#3). The frontend checks this every few seconds.
+      parameters:
+        - { name: unreadOnly, in: query, schema: { type: boolean } }
+        - { name: since, in: query, description: Only newer than this timestamp, schema: { type: string, format: date-time } }
+        - { $ref: '#/components/parameters/page' }
+        - { $ref: '#/components/parameters/limit' }
+      responses:
+        '200':
+          description: Notifications + unread count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Notification' } }
+                  meta:
+                    type: object
+                    properties:
+                      unreadCount: { type: integer }
+                      total: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /notifications/{id}/read:
+    parameters:
+      - { $ref: '#/components/parameters/id' }
+    patch:
+      tags: [S1 Notifications]
+      summary: Mark one as read
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Notification' } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /notifications/read-all:
+    patch:
+      tags: [S1 Notifications]
+      summary: Mark all as read
+      responses:
+        '200': { description: Count updated, content: { application/json: { schema: { type: object, properties: { data: { type: object, properties: { updated: { type: integer } } } } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # =================================================================== S2 REQUESTS
+  /requests/faq-check:
+    post:
+      tags: [S2 Requests]
+      summary: AI check of the question against the instructor's FAQ before submitting (#13, Gemini)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [slotId, title, description]
+              properties:
+                slotId: { type: string, format: uuid }
+                title: { type: string, minLength: 3, maxLength: 120 }
+                description: { type: string, minLength: 10, maxLength: 2000 }
+      responses:
+        '200':
+          description: Match result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      matched: { type: boolean }
+                      faqId: { type: string, format: uuid, nullable: true }
+                      faqQuestion: { type: string, nullable: true }
+                      answer: { type: string, nullable: true, description: AI answer based on the FAQ }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '502': { $ref: '#/components/responses/BadGateway' }
+
+  /requests:
+    get:
+      tags: [S2 Requests]
+      summary: Student = my requests (#5). Instructor = inbox with filters (#9).
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [pending, confirmed, rejected, cancelled, completed] } }
+        - { name: priority, in: query, schema: { type: string, enum: [low, normal, high] } }
+        - { name: slotId, in: query, schema: { type: string, format: uuid } }
+        - { name: moduleId, in: query, schema: { type: integer } }
+        - { name: unopened, in: query, schema: { type: boolean } }
+        - { name: q, in: query, description: 'Search title, description or student name', schema: { type: string } }
+        - { name: sort, in: query, schema: { type: string, enum: [newest, oldest, priority, slotDate], default: newest } }
+        - { $ref: '#/components/parameters/page' }
+        - { $ref: '#/components/parameters/limit' }
+      responses:
+        '200': { description: Requests, content: { application/json: { schema: { $ref: '#/components/schemas/RequestList' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [S2 Requests]
+      summary: Submit a request (#6, student). Slot must be active, upcoming, in the student's modules and not full; window must fit inside the slot; one active request per slot.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [slotId, title, description, preferredStart, preferredEnd]
+              properties:
+                slotId: { type: string, format: uuid }
+                title: { type: string, minLength: 3, maxLength: 120 }
+                description: { type: string, minLength: 10, maxLength: 2000 }
+                preferredStart: { type: string, example: '10:00' }
+                preferredEnd: { type: string, example: '10:15' }
+                priority: { type: string, enum: [low, normal, high], default: normal }
+                faqSuggestion: { type: string, nullable: true, description: AI answer the student saw and chose to continue past }
+      responses:
+        '201': { description: Created (status pending; instructor notified), content: { application/json: { schema: { $ref: '#/components/schemas/RequestResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: 'SLOT_FULL, SLOT_NOT_ACTIVE, WINDOW_OUTSIDE_SLOT, DUPLICATE_REQUEST', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /requests/{id}:
+    parameters:
+      - { $ref: '#/components/parameters/id' }
+    get:
+      tags: [S2 Requests]
+      summary: Request details + status (#5). First open by the instructor sets openedAt (locks student edits).
+      responses:
+        '200': { description: Request, content: { application/json: { schema: { $ref: '#/components/schemas/RequestResponse' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [S2 Requests]
+      summary: Edit a request (#2, student owner). Only while pending AND not yet opened by the instructor.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string, minLength: 3, maxLength: 120 }
+                description: { type: string, minLength: 10, maxLength: 2000 }
+                preferredStart: { type: string }
+                preferredEnd: { type: string }
+                priority: { type: string, enum: [low, normal, high] }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/RequestResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: 'REQUEST_LOCKED (already opened or not pending)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /requests/{id}/status:
+    parameters:
+      - { $ref: '#/components/parameters/id' }
+    patch:
+      tags: [S2 Requests]
+      summary: >
+        Change status (#2, #5). Instructor: pending -> confirmed | rejected. Either side: pending|confirmed -> cancelled
+        (emergency cancel, reason required). Confirm triggers S3: add to queue (#14) + QR email (#12). The other side is notified.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [confirmed, rejected, cancelled] }
+                reason: { type: string, maxLength: 500, description: Required for rejected and cancelled }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/RequestResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: 'INVALID_TRANSITION, SLOT_FULL, MEETING_STARTED', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  # =================================================================== S2 FAQ
+  /faqs:
+    get:
+      tags: [S2 FAQ]
+      summary: Instructor = own FAQ. Student = FAQ of a given instructor.
+      parameters:
+        - { name: instructorId, in: query, schema: { type: string } }
+        - { name: moduleId, in: query, schema: { type: integer } }
+        - { name: q, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: FAQs
+          content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Faq' } } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [S2 FAQ]
+      summary: Add an FAQ (instructor)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/FaqInput' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Faq' } } } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /faqs/{id}:
+    parameters:
+      - { $ref: '#/components/parameters/id' }
+    patch:
+      tags: [S2 FAQ]
+      summary: Edit an FAQ (owner)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/FaqInput' } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Faq' } } } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [S2 FAQ]
+      summary: Delete an FAQ (owner)
+      responses:
+        '204': { description: Deleted }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # =================================================================== S3 QUEUE
+  /queue/position/{requestId}:
+    parameters:
+      - { name: requestId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [S3 Queue]
+      summary: Remaining in queue (#7, student owner). Count only, no names.
+      responses:
+        '200':
+          description: Position
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      status: { type: string, enum: [waiting, in_meeting, done, skipped] }
+                      ahead: { type: integer }
+                      estimatedWaitMinutes: { type: integer }
+                      checkedIn: { type: boolean }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /queue/slots/{slotId}:
+    parameters:
+      - { $ref: '#/components/parameters/slotId' }
+    get:
+      tags: [S3 Queue]
+      summary: Full queue of a slot (instructor owner), with names, check-in state and current meeting
+      responses:
+        '200':
+          description: Queue
+          content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/QueueEntry' } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /queue/slots/{slotId}/next:
+    parameters:
+      - { $ref: '#/components/parameters/slotId' }
+    post:
+      tags: [S3 Queue]
+      summary: Call next (#11). Current in_meeting -> done (creates the meeting record, request -> completed); next waiting -> in_meeting; student notified.
+      responses:
+        '200':
+          description: New state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      finished: { $ref: '#/components/schemas/QueueEntry' }
+                      current: { $ref: '#/components/schemas/QueueEntry' }
+                      remaining: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: 'QUEUE_EMPTY, SLOT_NOT_TODAY', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /queue/entries/{id}/skip:
+    parameters:
+      - { $ref: '#/components/parameters/id' }
+    patch:
+      tags: [S3 Queue]
+      summary: Skip a student (#11, e.g. not checked in). Student notified.
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { reason: { type: string, maxLength: 300 } } }
+      responses:
+        '200': { description: Skipped, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/QueueEntry' } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: 'ALREADY_FINISHED', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /queue/slots/{slotId}/close:
+    parameters:
+      - { $ref: '#/components/parameters/slotId' }
+    post:
+      tags: [S3 Queue]
+      summary: Mark the queue done (#11). Current meeting finished; remaining waiting entries skipped and notified.
+      responses:
+        '200': { description: Closed, content: { application/json: { schema: { type: object, properties: { data: { type: object, properties: { finished: { type: integer }, skipped: { type: integer } } } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /check-in/{token}:
+    parameters:
+      - { name: token, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [S3 Queue]
+      summary: Page opened by the QR code (#12). Shows meeting details. Public (token is the secret).
+      security: []
+      responses:
+        '200':
+          description: Meeting details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      studentName: { type: string }
+                      instructorName: { type: string }
+                      slotDate: { type: string, format: date }
+                      startTime: { type: string }
+                      location: { type: string }
+                      position: { type: integer }
+                      checkedInAt: { type: string, format: date-time, nullable: true }
+        '404': { description: Invalid QR, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    post:
+      tags: [S3 Queue]
+      summary: Simulated door check-in. Only on the slot's day and before the queue entry is finished.
+      security: []
+      responses:
+        '200': { description: Checked in, content: { application/json: { schema: { type: object, properties: { data: { type: object, properties: { checkedInAt: { type: string, format: date-time }, ahead: { type: integer } } } } } } } }
+        '404': { description: Invalid QR, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: 'NOT_MEETING_DAY, ALREADY_CHECKED_IN, ENTRY_FINISHED', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  # =================================================================== S3 HISTORY
+  /meetings:
+    get:
+      tags: [S3 History]
+      summary: Meeting history (#4) for the current user, searchable
+      parameters:
+        - { name: q, in: query, description: Search request title or notes, schema: { type: string } }
+        - { name: moduleId, in: query, schema: { type: integer } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { $ref: '#/components/parameters/page' }
+        - { $ref: '#/components/parameters/limit' }
+      responses:
+        '200':
+          description: Meetings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Meeting' } }
+                  meta: { $ref: '#/components/schemas/Meta' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /meetings/{id}:
+    parameters:
+      - { $ref: '#/components/parameters/id' }
+    get:
+      tags: [S3 History]
+      summary: One meeting with both sides' notes
+      responses:
+        '200': { description: Meeting, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Meeting' } } } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /meetings/{id}/notes:
+    parameters:
+      - { $ref: '#/components/parameters/id' }
+    patch:
+      tags: [S3 History]
+      summary: Save my notes (instructor -> instructorNotes, student -> studentNotes)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [notes]
+              properties:
+                notes: { type: string, maxLength: 5000 }
+      responses:
+        '200': { description: Saved, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Meeting' } } } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer }
+
+  parameters:
+    id: { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    slotId: { name: slotId, in: path, required: true, schema: { type: string, format: uuid } }
+    page: { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+    limit: { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+
+  responses:
+    BadRequest: { description: Invalid input, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    Unauthorized: { description: Missing or expired token, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    Forbidden: { description: Wrong role or not the owner, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    NotFound: { description: Record does not exist, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    BadGateway: { description: External API failed (Calendarific / Gemini / Brevo), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string, example: VALIDATION_ERROR }
+            message: { type: string, example: Title must be between 3 and 120 characters }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field: { type: string, example: title }
+                  issue: { type: string, example: too short }
+
+    Meta:
+      type: object
+      properties:
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+
+    PersonRef:
+      type: object
+      properties:
+        universityId: { type: string }
+        fullName: { type: string }
+
+    Module:
+      type: object
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        name: { type: string }
+
+    ScheduleEntry:
+      type: object
+      properties:
+        dayOfWeek: { type: integer, description: 0 = Sunday }
+        startTime: { type: string }
+        endTime: { type: string }
+        kind: { type: string, enum: [lecture, lab, tutorial] }
+        module: { $ref: '#/components/schemas/Module' }
+
+    User:
+      type: object
+      properties:
+        universityId: { type: string }
+        fullName: { type: string }
+        email: { type: string }
+        role: { type: string, enum: [student, instructor] }
+        group: { type: string, nullable: true, example: CS-Y3-G1 }
+        modules: { type: array, items: { $ref: '#/components/schemas/Module' } }
+        schedule: { type: array, items: { $ref: '#/components/schemas/ScheduleEntry' }, description: Students only }
+
+    UserResponse:
+      type: object
+      properties:
+        data: { $ref: '#/components/schemas/User' }
+
+    SlotInput:
+      type: object
+      required: [slotDate, startTime, endTime, location]
+      properties:
+        moduleId: { type: integer, nullable: true }
+        slotDate: { type: string, format: date }
+        startTime: { type: string, example: '10:00' }
+        endTime: { type: string, example: '12:00' }
+        location: { type: string, minLength: 2, maxLength: 100 }
+        capacity: { type: integer, minimum: 1, maximum: 50, default: 5 }
+
+    Slot:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        instructor: { $ref: '#/components/schemas/PersonRef' }
+        module: { $ref: '#/components/schemas/Module' }
+        slotDate: { type: string, format: date }
+        startTime: { type: string }
+        endTime: { type: string }
+        location: { type: string }
+        capacity: { type: integer }
+        confirmedCount: { type: integer }
+        isFull: { type: boolean }
+        status: { type: string, enum: [active, cancelled] }
+        clashesWithSchedule: { type: boolean, description: Students only; true = overlaps a lecture/lab }
+
+    SlotResponse:
+      type: object
+      properties:
+        data: { $ref: '#/components/schemas/Slot' }
+
+    SlotList:
+      type: object
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Slot' } }
+        meta: { $ref: '#/components/schemas/Meta' }
+
+    Request:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        student: { $ref: '#/components/schemas/PersonRef' }
+        slot: { $ref: '#/components/schemas/Slot' }
+        title: { type: string }
+        description: { type: string }
+        preferredStart: { type: string }
+        preferredEnd: { type: string }
+        priority: { type: string, enum: [low, normal, high] }
+        status: { type: string, enum: [pending, confirmed, rejected, cancelled, completed] }
+        faqSuggestion: { type: string, nullable: true }
+        openedAt: { type: string, format: date-time, nullable: true }
+        statusReason: { type: string, nullable: true }
+        cancelledBy: { type: string, enum: [student, instructor], nullable: true }
+        canEdit: { type: boolean, description: Computed for the current user }
+        queueEntryId: { type: string, format: uuid, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    RequestResponse:
+      type: object
+      properties:
+        data: { $ref: '#/components/schemas/Request' }
+
+    RequestList:
+      type: object
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/Request' } }
+        meta: { $ref: '#/components/schemas/Meta' }
+
+    FaqInput:
+      type: object
+      required: [question, answer]
+      properties:
+        moduleId: { type: integer, nullable: true }
+        question: { type: string, minLength: 5, maxLength: 300 }
+        answer: { type: string, minLength: 5, maxLength: 2000 }
+
+    Faq:
+      allOf:
+        - $ref: '#/components/schemas/FaqInput'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            instructorId: { type: string }
+
+    QueueEntry:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        requestId: { type: string, format: uuid }
+        position: { type: integer }
+        status: { type: string, enum: [waiting, in_meeting, done, skipped] }
+        student: { $ref: '#/components/schemas/PersonRef' }
+        title: { type: string }
+        checkedInAt: { type: string, format: date-time, nullable: true }
+        calledAt: { type: string, format: date-time, nullable: true }
+        finishedAt: { type: string, format: date-time, nullable: true }
+
+    Notification:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string }
+        message: { type: string }
+        link: { type: string, nullable: true }
+        isRead: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    Meeting:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        requestId: { type: string, format: uuid }
+        title: { type: string }
+        student: { $ref: '#/components/schemas/PersonRef' }
+        instructor: { $ref: '#/components/schemas/PersonRef' }
+        module: { $ref: '#/components/schemas/Module' }
+        startedAt: { type: string, format: date-time }
+        endedAt: { type: string, format: date-time, nullable: true }
+        durationMinutes: { type: integer, nullable: true }
+        instructorNotes: { type: string, nullable: true }
+        studentNotes: { type: string, nullable: true }
