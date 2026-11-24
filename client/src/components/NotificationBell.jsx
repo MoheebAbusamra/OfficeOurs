@@ -1,8 +1,8 @@
-// [S1] Checks for new notifications every few seconds and shows the unread count
+// [S2] Checks for new notifications every few seconds and shows the unread count
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
-import { getNotifications, markAllNotificationsRead, markNotificationRead } from '@/api/scheduling';
+import { getNotifications, markAllNotificationsRead, markNotificationRead } from '@/api/requests';
 
 const POLL_MS = 5000;
 const timeAgo = date => {
