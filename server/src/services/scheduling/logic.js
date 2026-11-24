@@ -436,3 +436,104 @@ export async function getHolidays(year) {
   return holidays;
 }
  
+// GET /dashboard (instructors only): numbers from S1 slots, S2 requests and S3 meetings
+export async function getDashboard(user) {
+  const today = new Date().toLocaleDateString('en-CA');
+ 
+  // 1. All my slots (S1). Upcoming = active and today or later
+  const slots = await db.findSlots({ instructorId: user.universityId });
+  let upcomingSlots = 0;
+  const slotIds = [];
+  for (const s of slots) {
+    slotIds.push(s.id);
+    if (s.status === 'active' && s.slot_date >= today) upcomingSlots++;
+  }
+ 
+  // 2. All requests on my slots (S2)
+  let requests = [];
+  if (slotIds.length > 0) {
+    requests = await db.findRequestsOfSlots(slotIds);
+  }
+ 
+  // 3. Count them in one loop
+  let pendingRequests = 0;
+  let highPriorityPending = 0;
+  let accepted = 0; // confirmed, or confirmed and then completed by S3
+  let rejected = 0;
+  let faqDeflections = 0;
+  for (const r of requests) {
+    if (r.status === 'pending') {
+      pendingRequests++;
+      if (r.priority === 'high') highPriorityPending++;
+    }
+    if (r.status === 'confirmed' || r.status === 'completed') accepted++;
+    if (r.status === 'rejected') rejected++;
+    if (r.faq_suggestion) faqDeflections++; // the AI found an FAQ answer for this question
+  }
+ 
+  // Acceptance rate = accepted / (accepted + rejected), e.g. 0.75. The page shows it as 75%
+  let acceptanceRate = 0;
+  if (accepted + rejected > 0) {
+    acceptanceRate = Math.round((accepted / (accepted + rejected)) * 100) / 100;
+  }
+ 
+  // 4. Next meeting: the earliest confirmed request in an active slot from today on
+  let nextMeeting = null;
+  for (const r of requests) {
+    if (r.status !== 'confirmed') continue;
+    const slot = slots.find(s => s.id === r.slot_id);
+    if (slot.status !== 'active' || slot.slot_date < today) continue;
+ 
+    const candidate = {
+      slotId: slot.id,
+      date: slot.slot_date,
+      startTime: r.preferred_start.slice(0, 5), // the student's chosen time inside the slot
+      studentName: r.university_registry.full_name,
+      title: r.title,
+    };
+    // Keep it if it is earlier than the one we have (first by date, then by time)
+    if (
+      nextMeeting === null ||
+      candidate.date < nextMeeting.date ||
+      (candidate.date === nextMeeting.date && candidate.startTime < nextMeeting.startTime)
+    ) {
+      nextMeeting = candidate;
+    }
+  }
+ 
+  // 5. Meetings (S3): total, this week (the week starts on Sunday), and average length
+  const meetings = await db.findMeetingsOfInstructor(user.universityId);
+  const now = new Date();
+  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()); // last Sunday, 00:00
+ 
+  let meetingsThisWeek = 0;
+  let totalMinutes = 0;
+  let finishedMeetings = 0;
+  for (const m of meetings) {
+    if (new Date(m.started_at) >= weekStart) meetingsThisWeek++;
+    if (m.ended_at) {
+      // Subtracting two dates gives milliseconds; / 60000 turns them into minutes
+      totalMinutes += (new Date(m.ended_at) - new Date(m.started_at)) / 60000;
+      finishedMeetings++;
+    }
+  }
+  let avgMeetingMinutes = 0;
+  if (finishedMeetings > 0) {
+    avgMeetingMinutes = Math.round(totalMinutes / finishedMeetings);
+  }
+ 
+  return {
+    pendingRequests,
+    highPriorityPending,
+    nextMeeting,
+    upcomingSlots,
+    stats: {
+      meetingsThisWeek,
+      meetingsTotal: meetings.length,
+      avgMeetingMinutes,
+      acceptanceRate,
+      faqDeflections,
+    },
+  };
+}
+ 

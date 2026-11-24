@@ -166,3 +166,23 @@ export async function saveHolidays(rows) {
   if (error) throw error;
 }
  
+// All requests on these slots, with the student's name (for the instructor dashboard)
+export async function findRequestsOfSlots(slotIds) {
+  const { data, error } = await supabase
+    .from('requests')
+    .select('id, slot_id, status, priority, title, preferred_start, faq_suggestion, university_registry(full_name)')
+    .in('slot_id', slotIds);
+  if (error) throw error;
+  return data;
+}
+ 
+// All meetings of an instructor (written by S3 when a meeting is done)
+export async function findMeetingsOfInstructor(instructorId) {
+  const { data, error } = await supabase
+    .from('meetings')
+    .select('started_at, ended_at')
+    .eq('instructor_id', instructorId);
+  if (error) throw error;
+  return data;
+}
+ 

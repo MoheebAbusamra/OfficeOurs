@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../../shared/auth.js';
 import { validateInstructorsQuery, validateSlotsQuery, validateSlotId, validateCreateSlot, validateUpdateSlot, validateHolidaysQuery } from './validation.js';
-import { listModules, listInstructors, listSlots, getSlot, createSlot, updateSlot, deleteSlot, getHolidays } from './logic.js';
+import { listModules, listInstructors, listSlots, getSlot, createSlot, updateSlot, deleteSlot, getHolidays, getDashboard } from './logic.js';
  
 const router = Router();
  
@@ -62,6 +62,12 @@ router.get('/holidays', requireAuth, async (req, res) => {
   validateHolidaysQuery(req.query);
   const holidays = await getHolidays(Number(req.query.year));
   res.json({ data: holidays });
+});
+ 
+// Instructor home page numbers
+router.get('/dashboard', requireAuth, requireRole('instructor'), async (req, res) => {
+  const dashboard = await getDashboard(req.user);
+  res.json({ data: dashboard });
 });
  
 export default router;
