@@ -1,6 +1,7 @@
 // [S1] Business rules: no overlapping slots, no slots on holidays/weekends, clash ranking, dashboard stats, notifications
 import { AppError } from '../../shared/errors.js';
 import * as db from './db.js';
+import { fetchEgyptHolidays } from './calendarific.js';
  
 // GET /modules: a student gets their group's modules, an instructor the modules they teach
 export async function listModules(user) {
@@ -235,7 +236,9 @@ export async function createSlot(user, body) {
     throw new AppError(409, 'WEEKEND', 'Friday and Saturday are weekend days. Pick another date.');
   }
  
-  const holiday = await db.findHoliday(body.slotDate);
+  // getHolidays() makes sure that year is in the cache (it calls Calendarific the first time)
+  const holidays = await getHolidays(Number(body.slotDate.slice(0, 4)));
+  const holiday = holidays.find(h => h.date === body.slotDate);
   if (holiday) {
     throw new AppError(409, 'HOLIDAY', `That date is a public holiday (${holiday.name}). Pick another date.`);
   }
@@ -334,7 +337,8 @@ export async function updateSlot(user, id, body) {
     throw new AppError(409, 'WEEKEND', 'Friday and Saturday are weekend days. Pick another date.');
   }
  
-  const holiday = await db.findHoliday(slotDate);
+  const holidays = await getHolidays(Number(slotDate.slice(0, 4)));
+  const holiday = holidays.find(h => h.date === slotDate);
   if (holiday) {
     throw new AppError(409, 'HOLIDAY', `That date is a public holiday (${holiday.name}). Pick another date.`);
   }
@@ -406,5 +410,29 @@ export async function deleteSlot(user, id) {
   }
  
   await db.deleteSlot(id);
+}
+ 
+// GET /holidays?year=2026: from the database cache, or from Calendarific the first time
+export async function getHolidays(year) {
+  // 1. Already cached? Then no API call is needed
+  const cached = await db.findHolidaysOfYear(year);
+  if (cached.length > 0) {
+    const holidays = [];
+    for (const row of cached) {
+      holidays.push({ date: row.holiday_date, name: row.name });
+    }
+    return holidays;
+  }
+ 
+  // 2. Not cached yet: ask Calendarific (this can throw 502), then save the result
+  const holidays = await fetchEgyptHolidays(year);
+  if (holidays.length > 0) {
+    const rows = [];
+    for (const h of holidays) {
+      rows.push({ holiday_date: h.date, name: h.name, year });
+    }
+    await db.saveHolidays(rows);
+  }
+  return holidays;
 }
  

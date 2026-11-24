@@ -111,3 +111,12 @@ export function validateUpdateSlot(body) {
   }
 }
  
+// GET /holidays?year=2026
+export function validateHolidaysQuery(query) {
+  if (query.year === undefined || !/^\d{4}$/.test(query.year) || Number(query.year) < 2000 || Number(query.year) > 2100) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'Please check the highlighted fields', [
+      { field: 'year', issue: 'must be a year like 2026' },
+    ]);
+  }
+}
+ 

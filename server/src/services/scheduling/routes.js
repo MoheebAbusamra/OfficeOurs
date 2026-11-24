@@ -1,8 +1,8 @@
 // [S1] Endpoints (method + URL) -> validation -> logic; mounted at /api/v1
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../../shared/auth.js';
-import { validateInstructorsQuery, validateSlotsQuery, validateSlotId, validateCreateSlot, validateUpdateSlot } from './validation.js';
-import { listModules, listInstructors, listSlots, getSlot, createSlot, updateSlot, deleteSlot } from './logic.js';
+import { validateInstructorsQuery, validateSlotsQuery, validateSlotId, validateCreateSlot, validateUpdateSlot, validateHolidaysQuery } from './validation.js';
+import { listModules, listInstructors, listSlots, getSlot, createSlot, updateSlot, deleteSlot, getHolidays } from './logic.js';
  
 const router = Router();
  
@@ -55,6 +55,13 @@ router.delete('/slots/:id', requireAuth, requireRole('instructor'), async (req, 
   validateSlotId(req.params.id);
   await deleteSlot(req.user, req.params.id);
   res.status(204).end();
+});
+ 
+// Egypt public holidays for one year (any logged-in user)
+router.get('/holidays', requireAuth, async (req, res) => {
+  validateHolidaysQuery(req.query);
+  const holidays = await getHolidays(Number(req.query.year));
+  res.json({ data: holidays });
 });
  
 export default router;
