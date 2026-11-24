@@ -1,0 +1,114 @@
+/* [S2] Styles for the S2 pages (FAQs, new request, my requests, inbox). Uses the tokens from index.css. */
+
+/* ---------- Pop-up sheet (Dialog.jsx): a notebook page that drops in ---------- */
+.sheet {
+  width: min(560px, 92vw); max-height: 90vh; padding: 0; overflow: visible;
+  color: var(--ink); border: var(--line); border-radius: var(--wobble); box-shadow: var(--shadow-lg);
+  /* notebook page: red margin line + three punched holes (no ruling, so text stays clean) */
+  background:
+    radial-gradient(circle at 15px 56px, var(--paper) 0 6px, rgba(89, 10, 28, 0.25) 6px 7px, transparent 7.5px),
+    radial-gradient(circle at 15px 50%, var(--paper) 0 6px, rgba(89, 10, 28, 0.25) 6px 7px, transparent 7.5px),
+    radial-gradient(circle at 15px calc(100% - 56px), var(--paper) 0 6px, rgba(89, 10, 28, 0.25) 6px 7px, transparent 7.5px),
+    linear-gradient(90deg, transparent 32px, rgba(89, 10, 28, 0.22) 32px 34px, transparent 34px),
+    var(--white);
+}
+.sheet-sm { width: min(440px, 92vw); }
+.sheet[open] { animation: sheet-in 0.38s var(--ease) both; }
+.sheet::backdrop { background: rgba(43, 7, 16, 0.42); animation: fade-in 0.25s ease both; }
+.sheet-inner { position: relative; padding: 1.75rem 1.75rem 1.5rem 3rem; max-height: 90vh; overflow-y: auto; display: grid; gap: 1.1rem; }
+.sheet-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+.sheet-eyebrow { color: var(--burgundy); font-size: 1.15rem; }
+.sheet-actions { display: flex; justify-content: flex-end; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.25rem; }
+@keyframes sheet-in { from { opacity: 0; transform: translateY(28px) rotate(-1.5deg) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- Live character counter + ink bar ---------- */
+.field-foot { display: flex; justify-content: space-between; gap: 1rem; min-height: 1.2em; }
+.char-count { margin-left: auto; font-size: 0.8rem; font-variant-numeric: tabular-nums; color: var(--ink-muted); transition: color 0.2s; }
+.count-near { color: var(--burgundy); }
+.count-over { color: var(--burgundy); font-weight: 800; }
+.ink-bar { height: 3px; border-radius: 3px; background: rgba(89, 10, 28, 0.08); overflow: hidden; }
+.ink-bar span { display: block; height: 100%; border-radius: inherit; background: var(--blue); transition: width 0.2s ease, background 0.2s; }
+.ink-near span { background: #e3b93c; }
+.ink-over span { background: var(--burgundy); }
+
+/* ---------- Toolbar: search, then module filter tabs on one bottom line ---------- */
+.faq-toolbar { display: grid; gap: 1rem; }
+.search { position: relative; max-width: 420px; }
+.search svg { position: absolute; left: 0.85rem; top: 50%; translate: 0 -50%; color: var(--ink-muted); pointer-events: none; }
+.search .input { padding-left: 2.6rem; }
+.module-tabs { display: flex; gap: 1.75rem; border-bottom: 1px solid #e5ddd3; overflow-x: auto; scrollbar-width: none; }
+.module-tabs::-webkit-scrollbar { display: none; }
+.module-tab {
+  display: inline-flex; align-items: center; gap: 0.4rem; min-height: 44px; padding: 0.5rem 0; margin-bottom: -1px;
+  white-space: nowrap; cursor: pointer; font-weight: 500; color: var(--ink-muted);
+  background: none; border: 0; border-bottom: 3px solid transparent; transition: color 0.15s, border-color 0.15s;
+}
+.module-tab:hover { color: var(--ink); }
+.module-tab[aria-pressed='true'] { color: var(--ink); font-weight: 700; border-bottom-color: var(--burgundy); }
+.tab-count { font-size: 0.8rem; font-weight: 500; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.tab-empty { opacity: 0.55; } /* module with no FAQ yet: still visible, clearly a gap */
+
+/* ---------- FAQ cards ---------- */
+.faq-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); grid-auto-rows: 1fr; }
+.faq-card { display: flex; flex-direction: column; gap: 0.6rem; animation: card-in 0.4s var(--ease) both; animation-delay: calc(var(--i) * 45ms); transition: transform 0.18s var(--ease), box-shadow 0.18s; }
+.faq-card:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-lg); }
+.faq-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; }
+.faq-actions { display: flex; gap: 0.15rem; flex-shrink: 0; margin: -0.4rem -0.5rem 0 0; }
+.faq-actions .btn { min-height: 40px; min-width: 40px; }
+.faq-q { font-weight: 700; font-size: 1.05rem; line-height: 1.35; }
+.faq-a { color: var(--ink-muted); white-space: pre-line; }
+.faq-q .hand, .faq-a .hand { color: var(--burgundy); margin-right: 0.15rem; }
+/* module name: footer pinned to the bottom of the card, holding a soft tinted tag */
+.faq-module { margin-top: auto; padding-top: 0.75rem; border-top: 1px dashed #e5ddd3; display: flex; min-width: 0; }
+.module-tag {
+  display: inline-flex; align-items: center; gap: 0.45rem; max-width: 100%; padding: 0.25rem 0.7rem;
+  font-size: 0.82rem; font-weight: 600; color: var(--ink);
+  border: 1px solid rgba(43, 7, 16, 0.18); border-radius: var(--wobble-sm);
+}
+.module-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag-butter { background: var(--butter-soft); }
+.tag-blue { background: var(--blue-soft); }
+.tag-rose { background: var(--burgundy-soft); }
+.tag-mint { background: var(--success-soft); }
+.tag-all { background: var(--paper); border-style: dashed; font-weight: 500; color: var(--ink-muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot-butter { background: #e3b93c; }
+.dot-blue { background: #6fb2ec; }
+.dot-rose { background: var(--burgundy); }
+.dot-mint { background: #5fb585; }
+.dot-all { border: 1.5px dashed var(--ink-muted); }
+.faq-empty-icon { color: var(--burgundy); margin: 0 auto; }
+@keyframes card-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Delete confirm quote ---------- */
+.quote { margin: 0; padding: 0.75rem 1rem; font-weight: 600; background: var(--butter-soft); border-left: 4px solid var(--burgundy); border-radius: 0; }
+
+/* ---------- Success message fades away after 5 s (timer in Faqs.jsx removes it) ---------- */
+.flash-auto { animation: flash-out 0.5s ease 4.5s forwards; }
+@keyframes flash-out { to { opacity: 0; transform: translateY(-6px); } }
+
+/* ---------- Scrollbar inside the pop-up sheet ---------- */
+.sheet-inner { scrollbar-width: thin; scrollbar-color: var(--burgundy) transparent; }
+.sheet-inner::-webkit-scrollbar { width: 10px; }
+.sheet-inner::-webkit-scrollbar-track { background: transparent; margin: 14px 0; }
+.sheet-inner::-webkit-scrollbar-thumb { background: var(--butter); border: 2px solid var(--burgundy); border-radius: 999px; }
+.sheet-inner::-webkit-scrollbar-thumb:hover { background: var(--blue); }
+
+/* ---------- Thinking student illustration ---------- */
+.faq-head-side { display: flex; align-items: flex-end; gap: 1rem; }
+.thinking { display: block; flex-shrink: 0; overflow: visible; }
+.thinking .ts-face, .thinking .ts-hand { fill: var(--butter); stroke: var(--ink); stroke-width: 2.4; stroke-linejoin: round; }
+.thinking .ts-body { fill: var(--blue-soft); stroke: var(--ink); stroke-width: 2.4; stroke-linejoin: round; }
+.thinking .ts-cap { fill: var(--burgundy); stroke: var(--burgundy); stroke-width: 1.6; stroke-linejoin: round; }
+.thinking .ts-tassel { fill: none; stroke: var(--butter); stroke-width: 2; stroke-linecap: round; }
+.thinking .ts-tassel-end { fill: var(--butter); stroke: var(--burgundy); stroke-width: 1.2; }
+.thinking .ts-eye { fill: var(--ink); }
+.thinking .ts-line { fill: none; stroke: var(--ink); stroke-width: 2.2; stroke-linecap: round; }
+.thinking .ts-q { font-family: var(--font-hand); font-weight: 700; transform-box: fill-box; transform-origin: center; animation: q-bob 2.8s ease-in-out infinite; }
+.thinking .ts-q1 { font-size: 30px; fill: var(--burgundy); }
+.thinking .ts-q2 { font-size: 22px; fill: var(--blue); stroke: var(--ink); stroke-width: 0.8; animation-delay: -0.9s; }
+.thinking .ts-q3 { font-size: 18px; fill: var(--burgundy); opacity: 0.7; animation-delay: -1.8s; }
+@keyframes q-bob { 0%, 100% { transform: translateY(0) rotate(-6deg); } 50% { transform: translateY(-5px) rotate(8deg); } }
+.todo .thinking { margin: 0 auto; }
+@media (max-width: 640px) { .faq-head-side .thinking { display: none; } }
