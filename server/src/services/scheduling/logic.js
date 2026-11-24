@@ -207,3 +207,204 @@ export async function getSlot(user, id) {
   return toSlotResponse(row, confirmed.length, schedule);
 }
  
+// POST /slots (instructors only, checked in routes.js)
+export async function createSlot(user, body) {
+  const today = new Date().toLocaleDateString('en-CA');
+  const location = body.location.trim();
+ 
+  // 1. Simple field rules (400)
+  if (body.endTime <= body.startTime) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'End time must be after start time', [{ field: 'endTime', issue: 'must be after start time' }]);
+  }
+  if (body.slotDate < today) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'The date cannot be in the past', [{ field: 'slotDate', issue: 'is in the past' }]);
+  }
+ 
+  // 2. The module (if one is chosen) must be one the instructor teaches
+  if (body.moduleId) {
+    const myModules = await listModules(user);
+    const teachesIt = myModules.some(m => m.id === body.moduleId);
+    if (!teachesIt) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'You do not teach this module', [{ field: 'moduleId', issue: 'not one of your modules' }]);
+    }
+  }
+ 
+  // 3. Business rules (409): weekend, holiday, overlap with the instructor's own slots
+  const day = new Date(`${body.slotDate}T00:00:00Z`).getUTCDay();
+  if (day === 5 || day === 6) {
+    throw new AppError(409, 'WEEKEND', 'Friday and Saturday are weekend days. Pick another date.');
+  }
+ 
+  const holiday = await db.findHoliday(body.slotDate);
+  if (holiday) {
+    throw new AppError(409, 'HOLIDAY', `That date is a public holiday (${holiday.name}). Pick another date.`);
+  }
+ 
+  const sameDay = await db.findActiveSlotsOnDate(user.universityId, body.slotDate);
+  for (const other of sameDay) {
+    // Overlap = each one starts before the other ends (same idea as the clash check)
+    if (other.start_time.slice(0, 5) < body.endTime && body.startTime < other.end_time.slice(0, 5)) {
+      throw new AppError(409, 'SLOT_OVERLAP', 'This overlaps one of your other slots on that day.');
+    }
+  }
+ 
+  // 4. Save it. capacity is 5 when it is not given (same default as the database)
+  const row = await db.insertSlot({
+    instructor_id: user.universityId,
+    module_id: body.moduleId || null,
+    slot_date: body.slotDate,
+    start_time: body.startTime,
+    end_time: body.endTime,
+    location,
+    capacity: body.capacity || 5,
+  });
+ 
+  // A new slot has no requests yet, and instructors have no timetable
+  return toSlotResponse(row, 0, []);
+}
+ 
+// PATCH /slots/:id: edit the slot, or cancel it with { status: "cancelled" }
+export async function updateSlot(user, id, body) {
+  const today = new Date().toLocaleDateString('en-CA');
+ 
+  // 1. The slot must exist and belong to this instructor
+  const slot = await db.findSlotById(id);
+  if (!slot) {
+    throw new AppError(404, 'NOT_FOUND', 'Slot not found');
+  }
+  if (slot.instructor_id !== user.universityId) {
+    throw new AppError(403, 'FORBIDDEN', 'You can only change your own slots');
+  }
+ 
+  // 2. Cancelled and past slots are closed: they cannot be changed any more
+  if (slot.status === 'cancelled' || slot.slot_date < today) {
+    throw new AppError(409, 'SLOT_CLOSED', 'This slot is cancelled or already over, so it cannot be changed.');
+  }
+ 
+  const activeRequests = await db.findActiveRequests(id);
+ 
+  // 3a. CANCEL: cancel the slot, cancel its pending/confirmed requests and notify those students
+  if (body.status === 'cancelled') {
+    const updated = await db.updateSlot(id, { status: 'cancelled' });
+ 
+    if (activeRequests.length > 0) {
+      const requestIds = [];
+      const notifications = [];
+      for (const r of activeRequests) {
+        requestIds.push(r.id);
+        notifications.push({
+          recipient_id: r.student_id,
+          type: 'slot_cancelled',
+          message: `${user.fullName} cancelled the office hours on ${slot.slot_date} at ${slot.start_time.slice(0, 5)}. Your request was cancelled.`,
+          link: '/student/requests',
+        });
+      }
+      await db.cancelRequests(requestIds, 'The instructor cancelled this slot');
+      await db.insertNotifications(notifications);
+    }
+ 
+    return toSlotResponse(updated, 0, []); // no confirmed requests are left
+  }
+ 
+  // 3b. EDIT: take each new value from the body, or keep the old one if it was not sent
+  const slotDate = body.slotDate !== undefined ? body.slotDate : slot.slot_date;
+  const startTime = body.startTime !== undefined ? body.startTime : slot.start_time.slice(0, 5);
+  const endTime = body.endTime !== undefined ? body.endTime : slot.end_time.slice(0, 5);
+  const location = body.location !== undefined ? body.location.trim() : slot.location;
+  const capacity = body.capacity !== undefined ? body.capacity : slot.capacity;
+  const moduleId = body.moduleId !== undefined ? body.moduleId : slot.module_id;
+ 
+  // 4. The same rules as create
+  if (endTime <= startTime) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'End time must be after start time', [{ field: 'endTime', issue: 'must be after start time' }]);
+  }
+  if (slotDate < today) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'The date cannot be in the past', [{ field: 'slotDate', issue: 'is in the past' }]);
+  }
+  if (moduleId) {
+    const myModules = await listModules(user);
+    const teachesIt = myModules.some(m => m.id === moduleId);
+    if (!teachesIt) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'You do not teach this module', [{ field: 'moduleId', issue: 'not one of your modules' }]);
+    }
+  }
+ 
+  const day = new Date(`${slotDate}T00:00:00Z`).getUTCDay();
+  if (day === 5 || day === 6) {
+    throw new AppError(409, 'WEEKEND', 'Friday and Saturday are weekend days. Pick another date.');
+  }
+ 
+  const holiday = await db.findHoliday(slotDate);
+  if (holiday) {
+    throw new AppError(409, 'HOLIDAY', `That date is a public holiday (${holiday.name}). Pick another date.`);
+  }
+ 
+  const sameDay = await db.findActiveSlotsOnDate(user.universityId, slotDate);
+  for (const other of sameDay) {
+    if (other.id === id) continue; // skip this slot itself, it cannot overlap with itself
+    if (other.start_time.slice(0, 5) < endTime && startTime < other.end_time.slice(0, 5)) {
+      throw new AppError(409, 'SLOT_OVERLAP', 'This overlaps one of your other slots on that day.');
+    }
+  }
+ 
+  // 5. Capacity cannot go below the students already confirmed
+  let confirmedCount = 0;
+  for (const r of activeRequests) {
+    if (r.status === 'confirmed') confirmedCount++;
+  }
+  if (capacity < confirmedCount) {
+    throw new AppError(409, 'CAPACITY_BELOW_CONFIRMED', `${confirmedCount} students are already confirmed, so capacity must be at least ${confirmedCount}.`, [
+      { field: 'capacity', issue: `must be at least ${confirmedCount}` },
+    ]);
+  }
+ 
+  // 6. Save the changes
+  const updated = await db.updateSlot(id, {
+    slot_date: slotDate,
+    start_time: startTime,
+    end_time: endTime,
+    location,
+    capacity,
+    module_id: moduleId || null,
+  });
+ 
+  // 7. If the date, time or room changed, tell the students who have a request in this slot
+  const changed =
+    slotDate !== slot.slot_date ||
+    startTime !== slot.start_time.slice(0, 5) ||
+    endTime !== slot.end_time.slice(0, 5) ||
+    location !== slot.location;
+  if (changed && activeRequests.length > 0) {
+    const notifications = [];
+    for (const r of activeRequests) {
+      notifications.push({
+        recipient_id: r.student_id,
+        type: 'slot_changed',
+        message: `${user.fullName} changed the office hours to ${slotDate}, ${startTime} to ${endTime} in ${location}.`,
+        link: '/student/requests',
+      });
+    }
+    await db.insertNotifications(notifications);
+  }
+ 
+  return toSlotResponse(updated, confirmedCount, []);
+}
+ 
+// DELETE /slots/:id: only when nobody has a pending or confirmed request in it
+export async function deleteSlot(user, id) {
+  const slot = await db.findSlotById(id);
+  if (!slot) {
+    throw new AppError(404, 'NOT_FOUND', 'Slot not found');
+  }
+  if (slot.instructor_id !== user.universityId) {
+    throw new AppError(403, 'FORBIDDEN', 'You can only delete your own slots');
+  }
+ 
+  const activeRequests = await db.findActiveRequests(id);
+  if (activeRequests.length > 0) {
+    throw new AppError(409, 'SLOT_HAS_REQUESTS', 'This slot has active requests, so it cannot be deleted. Cancel it instead.');
+  }
+ 
+  await db.deleteSlot(id);
+}
+ 

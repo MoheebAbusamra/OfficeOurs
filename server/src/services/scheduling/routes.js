@@ -1,8 +1,8 @@
 // [S1] Endpoints (method + URL) -> validation -> logic; mounted at /api/v1
 import { Router } from 'express';
-import { requireAuth } from '../../shared/auth.js';
-import { validateInstructorsQuery, validateSlotsQuery, validateSlotId } from './validation.js';
-import { listModules, listInstructors, listSlots, getSlot } from './logic.js';
+import { requireAuth, requireRole } from '../../shared/auth.js';
+import { validateInstructorsQuery, validateSlotsQuery, validateSlotId, validateCreateSlot, validateUpdateSlot } from './validation.js';
+import { listModules, listInstructors, listSlots, getSlot, createSlot, updateSlot, deleteSlot } from './logic.js';
  
 const router = Router();
  
@@ -31,6 +31,30 @@ router.get('/slots/:id', requireAuth, async (req, res) => {
   validateSlotId(req.params.id);
   const slot = await getSlot(req.user, req.params.id);
   res.json({ data: slot });
+});
+ 
+// Create a slot (instructors only)
+router.post('/slots', requireAuth, requireRole('instructor'), async (req, res) => {
+  const body = req.body || {};
+  validateCreateSlot(body);
+  const slot = await createSlot(req.user, body);
+  res.status(201).json({ data: slot });
+});
+ 
+// Edit or cancel a slot (owner only, checked in logic.js)
+router.patch('/slots/:id', requireAuth, requireRole('instructor'), async (req, res) => {
+  validateSlotId(req.params.id);
+  const body = req.body || {};
+  validateUpdateSlot(body);
+  const slot = await updateSlot(req.user, req.params.id, body);
+  res.json({ data: slot });
+});
+ 
+// Delete a slot (owner only, and only without active requests)
+router.delete('/slots/:id', requireAuth, requireRole('instructor'), async (req, res) => {
+  validateSlotId(req.params.id);
+  await deleteSlot(req.user, req.params.id);
+  res.status(204).end();
 });
  
 export default router;

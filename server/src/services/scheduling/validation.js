@@ -50,3 +50,64 @@ export function validateSlotId(id) {
   }
 }
  
+// POST /slots body: { moduleId?, slotDate, startTime, endTime, location, capacity? }
+export function validateCreateSlot(body) {
+  const details = [];
+ 
+  if (body.moduleId !== undefined && body.moduleId !== null && !Number.isInteger(body.moduleId)) {
+    details.push({ field: 'moduleId', issue: 'must be a module id or null' });
+  }
+  if (typeof body.slotDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(body.slotDate)) {
+    details.push({ field: 'slotDate', issue: 'must be a date like 2026-11-25' });
+  }
+  // /^\d{2}:\d{2}$/ means a time like 09:30
+  if (typeof body.startTime !== 'string' || !/^\d{2}:\d{2}$/.test(body.startTime)) {
+    details.push({ field: 'startTime', issue: 'must be a time like 09:30' });
+  }
+  if (typeof body.endTime !== 'string' || !/^\d{2}:\d{2}$/.test(body.endTime)) {
+    details.push({ field: 'endTime', issue: 'must be a time like 10:30' });
+  }
+  if (typeof body.location !== 'string' || body.location.trim().length < 2 || body.location.trim().length > 100) {
+    details.push({ field: 'location', issue: 'must be 2 to 100 characters' });
+  }
+  if (body.capacity !== undefined && (!Number.isInteger(body.capacity) || body.capacity < 1 || body.capacity > 50)) {
+    details.push({ field: 'capacity', issue: 'must be a whole number from 1 to 50' });
+  }
+ 
+  if (details.length > 0) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'Please check the highlighted fields', details);
+  }
+}
+ 
+// PATCH /slots/:id body: the same fields as create, but every field is optional,
+// plus status ("cancelled" cancels the slot)
+export function validateUpdateSlot(body) {
+  const details = [];
+ 
+  if (body.moduleId !== undefined && body.moduleId !== null && !Number.isInteger(body.moduleId)) {
+    details.push({ field: 'moduleId', issue: 'must be a module id or null' });
+  }
+  if (body.slotDate !== undefined && (typeof body.slotDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(body.slotDate))) {
+    details.push({ field: 'slotDate', issue: 'must be a date like 2026-11-25' });
+  }
+  if (body.startTime !== undefined && (typeof body.startTime !== 'string' || !/^\d{2}:\d{2}$/.test(body.startTime))) {
+    details.push({ field: 'startTime', issue: 'must be a time like 09:30' });
+  }
+  if (body.endTime !== undefined && (typeof body.endTime !== 'string' || !/^\d{2}:\d{2}$/.test(body.endTime))) {
+    details.push({ field: 'endTime', issue: 'must be a time like 10:30' });
+  }
+  if (body.location !== undefined && (typeof body.location !== 'string' || body.location.trim().length < 2 || body.location.trim().length > 100)) {
+    details.push({ field: 'location', issue: 'must be 2 to 100 characters' });
+  }
+  if (body.capacity !== undefined && (!Number.isInteger(body.capacity) || body.capacity < 1 || body.capacity > 50)) {
+    details.push({ field: 'capacity', issue: 'must be a whole number from 1 to 50' });
+  }
+  if (body.status !== undefined && body.status !== 'active' && body.status !== 'cancelled') {
+    details.push({ field: 'status', issue: 'must be active or cancelled' });
+  }
+ 
+  if (details.length > 0) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'Please check the highlighted fields', details);
+  }
+}
+ 

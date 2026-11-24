@@ -1,6 +1,6 @@
 // [S1] Supabase queries only (create/read/update/delete/search)
 import { supabase } from '../../shared/supabase.js';
- 
+ 
 // The columns we read for a slot. "university_registry(...)" and "modules(...)" join the
 // instructor's name and the module, using the foreign keys instructor_id and module_id.
 const SLOT_COLUMNS = `
@@ -8,7 +8,7 @@ const SLOT_COLUMNS = `
   university_registry(university_id, full_name),
   modules(id, code, name)
 `;
- 
+ 
 // Modules a student group studies
 export async function findModulesOfGroup(groupId) {
   const { data, error } = await supabase
@@ -19,7 +19,7 @@ export async function findModulesOfGroup(groupId) {
   if (error) throw error;
   return data;
 }
- 
+ 
 // Modules an instructor teaches
 export async function findModulesOfInstructor(instructorId) {
   const { data, error } = await supabase
@@ -30,7 +30,7 @@ export async function findModulesOfInstructor(instructorId) {
   if (error) throw error;
   return data;
 }
- 
+ 
 // Who teaches which module, for a list of module ids, e.g. [1, 2, 3]
 export async function findTeachersOfModules(moduleIds) {
   const { data, error } = await supabase
@@ -40,29 +40,29 @@ export async function findTeachersOfModules(moduleIds) {
   if (error) throw error;
   return data;
 }
- 
+ 
 // Slots with optional filters. Only the filters that are given are added to the query.
 export async function findSlots(filters) {
   let query = supabase.from('slots').select(SLOT_COLUMNS);
- 
+ 
   if (filters.instructorId) query = query.eq('instructor_id', filters.instructorId);
   if (filters.moduleId) query = query.eq('module_id', filters.moduleId);
   if (filters.from) query = query.gte('slot_date', filters.from); // gte = greater than or equal
   if (filters.to) query = query.lte('slot_date', filters.to); // lte = less than or equal
   if (filters.status) query = query.eq('status', filters.status);
- 
+ 
   const { data, error } = await query.order('slot_date').order('start_time');
   if (error) throw error;
   return data;
 }
- 
+ 
 // One slot by id, or null
 export async function findSlotById(id) {
   const { data, error } = await supabase.from('slots').select(SLOT_COLUMNS).eq('id', id).maybeSingle();
   if (error) throw error;
   return data;
 }
- 
+ 
 // The confirmed requests of these slots (we only need slot_id to count them per slot)
 export async function findConfirmedRequests(slotIds) {
   const { data, error } = await supabase
@@ -73,7 +73,7 @@ export async function findConfirmedRequests(slotIds) {
   if (error) throw error;
   return data;
 }
- 
+ 
 // Weekly timetable of a student group (lectures, labs, tutorials)
 export async function findSchedule(groupId) {
   const { data, error } = await supabase
@@ -83,11 +83,76 @@ export async function findSchedule(groupId) {
   if (error) throw error;
   return data;
 }
- 
+ 
 // Public holidays from a date onwards (the table is filled by GET /holidays in step 5)
 export async function findHolidayDates(fromDate) {
   const { data, error } = await supabase.from('holidays').select('holiday_date').gte('holiday_date', fromDate);
   if (error) throw error;
   return data;
 }
- 
+ 
+// The instructor's active slots on one date (used for the overlap check)
+export async function findActiveSlotsOnDate(instructorId, slotDate) {
+  const { data, error } = await supabase
+    .from('slots')
+    .select('id, start_time, end_time')
+    .eq('instructor_id', instructorId)
+    .eq('slot_date', slotDate)
+    .eq('status', 'active');
+  if (error) throw error;
+  return data;
+}
+ 
+// Is this date in the holidays table? Returns the holiday row or null
+export async function findHoliday(date) {
+  const { data, error } = await supabase.from('holidays').select('holiday_date, name').eq('holiday_date', date).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+ 
+// Saves a new slot and returns it (with the instructor and module joined)
+export async function insertSlot(slot) {
+  const { data, error } = await supabase.from('slots').insert(slot).select(SLOT_COLUMNS).single();
+  if (error) throw error;
+  return data;
+}
+ 
+// Changes some columns of a slot and returns the updated slot
+export async function updateSlot(id, changes) {
+  const { data, error } = await supabase.from('slots').update(changes).eq('id', id).select(SLOT_COLUMNS).single();
+  if (error) throw error;
+  return data;
+}
+ 
+// Removes a slot for good
+export async function deleteSlot(id) {
+  const { error } = await supabase.from('slots').delete().eq('id', id);
+  if (error) throw error;
+}
+ 
+// Pending and confirmed requests of a slot (these are the "active" requests)
+export async function findActiveRequests(slotId) {
+  const { data, error } = await supabase
+    .from('requests')
+    .select('id, student_id, status')
+    .eq('slot_id', slotId)
+    .in('status', ['pending', 'confirmed']);
+  if (error) throw error;
+  return data;
+}
+ 
+// Cancels requests by id, saying the instructor did it and why
+export async function cancelRequests(requestIds, reason) {
+  const { error } = await supabase
+    .from('requests')
+    .update({ status: 'cancelled', cancelled_by: 'instructor', status_reason: reason })
+    .in('id', requestIds);
+  if (error) throw error;
+}
+ 
+// Saves notifications; the bell (S2) shows them to the students
+export async function insertNotifications(notifications) {
+  const { error } = await supabase.from('notifications').insert(notifications);
+  if (error) throw error;
+}
+ 
