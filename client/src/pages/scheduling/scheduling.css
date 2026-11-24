@@ -1,19 +1,90 @@
 /* [S1] Page styles for the S1 scheduling pages (BrowseSlots, ManageSlots, Dashboard) */
 
-/* ---------- BrowseSlots: filter bar ---------- */
-.slot-filters {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); /* fields side by side, wrap on small screens */
-  align-items: end;
+/* ---------- BrowseSlots: module + instructor chooser ---------- */
+.chooser {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 1.25rem;
+  padding: 1.5rem; background: var(--butter-soft);
+  border: var(--line); border-radius: var(--wobble); box-shadow: var(--shadow);
 }
-.slot-filters .input, .slot-filters .select { height: 48px; } /* same height so the row lines up */
-.slot-filter-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.5rem; } /* buttons get their own row */
+.chooser-step { display: grid; gap: 0.5rem; align-content: start; min-width: 0; }
+.chooser-step + .chooser-step { border-left: 2px dashed rgba(89, 10, 28, 0.25); padding-left: 1.25rem; }
+.chooser-title { display: flex; align-items: center; gap: 0.6rem; font-size: 1.3rem; }
+.chooser-num {
+  display: grid; place-items: center; width: 34px; height: 34px;
+  background: var(--burgundy); color: var(--butter); font-family: var(--font-hand);
+  border-radius: var(--wobble-sm); transform: rotate(-4deg);
+}
+.chooser-folder { display: grid; place-items: center; min-height: 240px; }
+.chooser-chip {
+  justify-self: center; padding: 0.3rem 0.9rem; font-weight: 700; font-size: 0.9rem;
+  background: var(--white); border: var(--line); border-radius: 999px;
+}
+.chooser-empty {
+  display: grid; place-items: center; text-align: center; gap: 0.25rem; min-height: 240px;
+  border: 2px dashed rgba(89, 10, 28, 0.3); border-radius: var(--wobble-sm);
+}
+.chooser-empty .hand { font-size: 1.4rem; color: var(--burgundy); }
+.lanyard-row { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.lanyard-pick { display: grid; gap: 0.6rem; }
+.lanyard-stage { height: 250px; border-radius: var(--wobble-sm); background: var(--paper); } /* Lanyard needs a fixed height */
+.lanyard-pick.is-picked .lanyard-stage { box-shadow: inset 0 0 0 3px var(--burgundy); }
 
-/* ---------- BrowseSlots: slot cards ---------- */
-.slot-card { display: flex; flex-direction: column; gap: 0.6rem; } /* column so the button can sit at the bottom */
-.slot-card .hand { font-size: 1.15rem; color: var(--burgundy); }
-.slot-meta { display: flex; align-items: center; gap: 0.5rem; }
-.slot-meta svg { flex-shrink: 0; color: var(--burgundy); }
-.slot-card .btn { margin-top: auto; }
+/* ---------- BrowseSlots: filter toolbar (one row on laptops) ---------- */
+.toolbar {
+  display: grid; gap: 0.9rem; align-items: end;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 1.1rem 1.25rem; background: var(--white);
+  border: var(--line); border-radius: var(--wobble-sm); box-shadow: 3px 3px 0 var(--ink);
+}
+.toolbar .input, .toolbar .select { height: 46px; }
+.toolbar-search { grid-column: span 3; }
+.toolbar-actions { display: flex; gap: 0.4rem; }
 
-/* Clashing slots look a little quieter so the good ones stand out (they are already listed last) */
-.slot-card.is-clash { background: var(--paper); border-style: dashed; box-shadow: 3px 3px 0 var(--ink-muted); }
+/* ---------- BrowseSlots: results ---------- */
+.results-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.5rem; margin-top: 0.5rem; }
+.results-head h2 { font-size: 1.5rem; }
+.slot-grid { display: grid; gap: 1.25rem; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
+
+/* One slot = a ticket: date stub on the left, details on the right */
+.slot-ticket {
+  display: grid; grid-template-columns: 84px 1fr; overflow: hidden;
+  background: var(--white); border: var(--line); border-radius: var(--wobble-sm); box-shadow: var(--shadow);
+  transition: transform 0.18s var(--ease), box-shadow 0.18s var(--ease);
+}
+.slot-ticket:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-lg); }
+.slot-date {
+  display: grid; place-content: center; text-align: center; gap: 0.1rem;
+  background: var(--burgundy); color: var(--butter); border-right: 2px dashed var(--butter);
+  font-family: var(--font-hand); font-size: 1rem;
+}
+.slot-date strong { font-family: var(--font-ui); font-size: 2.2rem; line-height: 1; }
+.slot-body { display: flex; flex-direction: column; gap: 0.45rem; padding: 1rem 1.1rem 1.1rem; }
+.slot-top { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; min-height: 26px; }
+.slot-code { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.04em; color: var(--ink-muted); margin-right: auto; }
+.slot-module { font-size: 1.1rem; line-height: 1.25; }
+.slot-instructor { font-size: 1.1rem; color: var(--burgundy); }
+.slot-facts { display: flex; flex-wrap: wrap; gap: 0.35rem 1rem; font-size: 0.95rem; }
+.slot-facts span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.slot-facts svg { color: var(--burgundy); }
+.slot-capacity { display: grid; gap: 0.3rem; margin: 0.3rem 0 0.4rem; }
+.slot-bar { height: 10px; background: var(--blue-soft); border: 1.5px solid var(--ink); border-radius: 999px; overflow: hidden; }
+.slot-bar span { display: block; height: 100%; background: var(--blue); border-right: 1.5px solid var(--ink); }
+.slot-capacity small { color: var(--ink-muted); font-weight: 600; }
+.slot-body .btn { margin-top: auto; }
+
+/* Clashing slots: quieter, dashed (they are already listed last by the API) */
+.slot-ticket.is-clash { border-style: dashed; box-shadow: 3px 3px 0 var(--ink-muted); }
+.slot-ticket.is-clash .slot-date { background: var(--ink-muted); }
+.slot-ticket.is-full .slot-bar span { background: var(--burgundy); }
+
+/* ---------- Phones and tablets ---------- */
+@media (max-width: 960px) {
+  .chooser { grid-template-columns: 1fr; }
+  .chooser-step + .chooser-step { border-left: 0; padding-left: 0; border-top: 2px dashed rgba(89, 10, 28, 0.25); padding-top: 1.25rem; }
+  .toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .toolbar-search, .toolbar-actions { grid-column: 1 / -1; }
+}
+@media (max-width: 480px) {
+  .toolbar { grid-template-columns: 1fr; }
+  .slot-grid { grid-template-columns: 1fr; }
+}
