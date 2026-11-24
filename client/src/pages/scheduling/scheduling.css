@@ -1,0 +1,19 @@
+/* [S1] Page styles for the S1 scheduling pages (BrowseSlots, ManageSlots, Dashboard) */
+
+/* ---------- BrowseSlots: filter bar ---------- */
+.slot-filters {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); /* fields side by side, wrap on small screens */
+  align-items: end;
+}
+.slot-filters .input, .slot-filters .select { height: 48px; } /* same height so the row lines up */
+.slot-filter-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.5rem; } /* buttons get their own row */
+
+/* ---------- BrowseSlots: slot cards ---------- */
+.slot-card { display: flex; flex-direction: column; gap: 0.6rem; } /* column so the button can sit at the bottom */
+.slot-card .hand { font-size: 1.15rem; color: var(--burgundy); }
+.slot-meta { display: flex; align-items: center; gap: 0.5rem; }
+.slot-meta svg { flex-shrink: 0; color: var(--burgundy); }
+.slot-card .btn { margin-top: auto; }
+
+/* Clashing slots look a little quieter so the good ones stand out (they are already listed last) */
+.slot-card.is-clash { background: var(--paper); border-style: dashed; box-shadow: 3px 3px 0 var(--ink-muted); }
