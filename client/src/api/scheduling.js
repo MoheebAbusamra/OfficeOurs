@@ -1,4 +1,4 @@
-// [S1] Calls to S1 endpoints: slots, holidays, dashboard, notifications
+// [S1] Calls to S1 endpoints: modules, instructors, slots, holidays, dashboard
 import { http } from './http';
 
 // Lookups for filters
@@ -15,8 +15,3 @@ export const deleteSlot = id => http.del(`/slots/${id}`);
 // Holidays (#15) + instructor dashboard (#10)
 export const getHolidays = year => http.get('/holidays', { year });
 export const getDashboard = () => http.get('/dashboard');
-
-// Notifications (#3), polled by NotificationBell
-export const getNotifications = params => http.get('/notifications', params); // { unreadOnly, since, page, limit }
-export const markNotificationRead = id => http.patch(`/notifications/${id}/read`);
-export const markAllNotificationsRead = () => http.patch('/notifications/read-all');
