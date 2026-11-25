@@ -302,7 +302,13 @@ export default function ManageSlots() {
       setSuccess(`Slot on ${slot.slotDate} deleted.`);
       return true;
     } catch (err) {
-      setError(err.code === 'SLOT_HAS_REQUESTS' ? 'This slot has students with active requests, so it cannot be deleted. Cancel it instead.' : err.message);
+      if (err.code === 'SLOT_HAS_REQUESTS' && slot.slotDate < today()) {
+  setError('This slot is over and still has student requests, so it stays in your history.');
+} else if (err.code === 'SLOT_HAS_REQUESTS') {
+  setError('This slot has students with active requests, so it cannot be deleted. Cancel it instead.');
+} else {
+  setError(err.message);
+}
       return false;
     }
   };
