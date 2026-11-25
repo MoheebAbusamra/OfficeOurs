@@ -7,6 +7,7 @@ import PageHeader from '@/components/PageHeader';
 import Alert from '@/components/Alert';
 import Dialog from './Dialog';
 import ThinkingStudent from './ThinkingStudent';
+import CountedField from './CountedField';
 import './requests.css';
 
 const LIMITS = { question: [5, 300], answer: [5, 2000] };
@@ -22,28 +23,6 @@ function ModuleLabel({ module, tone }) {
         <span className={`dot dot-${variant}`} aria-hidden="true" />
         <span className="module-name">{module ? module.name : 'General'}</span>
       </span>
-    </div>
-  );
-}
-
-// Input or textarea with a live character counter and a thin ink bar
-function CountedField({ id, label, value, onChange, error, max, multiline, autoFocus }) {
-  const len = value.trim().length;
-  const ratio = Math.min(len / max, 1);
-  const state = len > max ? 'over' : ratio >= 0.85 ? 'near' : 'ok';
-  const Tag = multiline ? 'textarea' : 'input';
-  return (
-    <div className="field">
-      <label className="label" htmlFor={id}>{label}</label>
-      <Tag id={id} className={multiline ? 'textarea' : 'input'} value={value} onChange={onChange}
-        aria-invalid={!!error} aria-describedby={`${id}-count ${id}-error`} {...(autoFocus ? { 'data-autofocus': true } : {})} />
-      <div className={`ink-bar ink-${state}`} aria-hidden="true"><span style={{ width: `${ratio * 100}%` }} /></div>
-      <div className="field-foot">
-        <span id={`${id}-error`} className="field-error">{error}</span>
-        <span id={`${id}-count`} className={`char-count count-${state}`}>
-          {len > max ? `${len - max} over the limit` : `${len} / ${max}`}
-        </span>
-      </div>
     </div>
   );
 }
