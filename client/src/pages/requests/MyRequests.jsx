@@ -1,5 +1,5 @@
 // [S2] MyRequests: Student tracks request status, edits it before it is opened, or cancels it (#2, #5)
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Ban, CalendarClock, CheckCheck, ChevronDown, Eye, EyeOff, Flame, ListOrdered, Pencil, Plus, RefreshCw, Search, Sparkles, X,
@@ -10,6 +10,7 @@ import Alert from '@/components/Alert';
 import Dialog from './Dialog';
 import CountedField from './CountedField';
 import ThinkingStudent from './ThinkingStudent';
+import StatusTabs from './StatusTabs';
 import TimeWindowPicker from './TimeWindowPicker';
 import { fitDuration, parseDate, toMin, toTime } from './time';
 import './requests.css';
@@ -66,31 +67,6 @@ function DateBlock({ iso }) {
       <span className="date-month">{d.toLocaleDateString('en-GB', { month: 'short' })}</span>
       <span className="date-day">{d.getDate()}</span>
       <span className="date-week">{d.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
-    </div>
-  );
-}
-
-// ---------- Status tabs with a sliding underline ----------
-function StatusTabs({ value, counts, onChange }) {
-  const wrap = useRef(null);
-  const [bar, setBar] = useState({ left: 0, width: 0 });
-  useLayoutEffect(() => {
-    const measure = () => {
-      const btn = wrap.current?.querySelector('[aria-pressed="true"]');
-      if (btn) setBar({ left: btn.offsetLeft, width: btn.offsetWidth });
-    };
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, [value, counts]);
-  return (
-    <div className="module-tabs status-tabs" role="group" aria-label="Filter by status" ref={wrap}>
-      {TABS.map(t => (
-        <button key={t} type="button" className={`module-tab${counts[t] ? '' : ' tab-empty'}`} aria-pressed={value === t} onClick={() => onChange(t)}>
-          {t === 'all' ? 'All' : label(t)} <span className="tab-count">{counts[t]}</span>
-        </button>
-      ))}
-      <span className="tab-ink" style={{ transform: `translateX(${bar.left}px)`, width: bar.width }} aria-hidden="true" />
     </div>
   );
 }
@@ -306,7 +282,7 @@ export default function MyRequests() {
               {ago === null ? 'Loading' : ago < 5 ? 'Updated just now' : `Updated ${ago < 60 ? `${ago} s` : `${Math.round(ago / 60)} min`} ago`}
             </button>
           </div>
-          <StatusTabs value={tab} counts={counts} onChange={setTab} />
+          <StatusTabs tabs={TABS} value={tab} counts={counts} onChange={setTab} />
         </div>
 
         {loading && (
