@@ -54,9 +54,10 @@ export async function signIn(email, password) {
   return data.session;
 }
  
-// Ends the session that belongs to this token
+// Ends the session that belongs to this token.
+// 'local' = only this login. Without it Supabase logs the user out on every device.
 export async function signOut(token) {
-  await supabase.auth.admin.signOut(token);
+  await supabase.auth.admin.signOut(token, 'local');
 }
  
 // Group name, e.g. "CS-Y3-G1"
