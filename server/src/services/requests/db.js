@@ -124,3 +124,68 @@ export async function updateRequest(id, changes, expected = {}) {
   if (error) throw error;
   return data;
 }
+
+// ------------------------------------------------------------------ Notifications (#3)
+// (new notifications are saved by shared/notify.js, so every service can create them)
+
+const NOTIFICATION_COLUMNS = 'id, recipient_id, type, message, link, is_read, created_at';
+
+// One page of a user's notifications, newest first, plus the total number that match.
+// range(from, to) = rows number "from" to "to" (counting from 0); count: 'exact' also returns the total.
+export async function findNotifications(filters) {
+  let query = supabase
+    .from('notifications')
+    .select(NOTIFICATION_COLUMNS, { count: 'exact' })
+    .eq('recipient_id', filters.recipientId);
+
+  if (filters.unreadOnly) query = query.eq('is_read', false);
+  if (filters.since) query = query.gt('created_at', filters.since); // gt = greater than (newer than)
+
+  const { data, error, count } = await query
+    .order('created_at', { ascending: false })
+    .range(filters.from, filters.to);
+  if (error) throw error;
+  return { rows: data, total: count };
+}
+
+// How many unread notifications a user has (head: true = only count, no rows)
+export async function countUnreadNotifications(recipientId) {
+  const { count, error } = await supabase
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .eq('recipient_id', recipientId)
+    .eq('is_read', false);
+  if (error) throw error;
+  return count;
+}
+
+// One notification by id, or null
+export async function findNotificationById(id) {
+  const { data, error } = await supabase.from('notifications').select(NOTIFICATION_COLUMNS).eq('id', id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+// Marks one notification as read and returns it
+export async function markNotificationRead(id) {
+  const { data, error } = await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('id', id)
+    .select(NOTIFICATION_COLUMNS)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// Marks all unread notifications of a user as read and returns how many changed
+export async function markAllNotificationsRead(recipientId) {
+  const { data, error } = await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('recipient_id', recipientId)
+    .eq('is_read', false)
+    .select('id');
+  if (error) throw error;
+  return data.length;
+}

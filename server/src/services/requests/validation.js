@@ -186,3 +186,55 @@ export function validateStatusChange(body) {
 
   throwIfAny(details);
 }
+
+// ------------------------------------------------------------------ Notifications (#3)
+
+// /notifications/:id must look like a uuid, otherwise the notification cannot exist
+export function validateNotificationId(id) {
+  if (!UUID.test(id)) {
+    throw new AppError(404, 'NOT_FOUND', 'Notification not found');
+  }
+}
+
+// GET /notifications?unreadOnly=&since=&page=&limit=
+export function validateNotificationsQuery(query) {
+  const details = [];
+
+  if (query.unreadOnly !== undefined && query.unreadOnly !== 'true' && query.unreadOnly !== 'false') {
+    details.push({ field: 'unreadOnly', issue: 'must be true or false' });
+  }
+  // since must be a date-time, e.g. 2026-11-25T14:05:00Z (Date.parse gives NaN for anything else)
+  if (query.since !== undefined && (typeof query.since !== 'string' || Number.isNaN(Date.parse(query.since)))) {
+    details.push({ field: 'since', issue: 'must be a date-time like 2026-11-25T14:05:00Z' });
+  }
+  if (query.page !== undefined && (!/^\d+$/.test(query.page) || Number(query.page) < 1)) {
+    details.push({ field: 'page', issue: 'must be 1 or more' });
+  }
+  if (query.limit !== undefined && (!/^\d+$/.test(query.limit) || Number(query.limit) < 1 || Number(query.limit) > 100)) {
+    details.push({ field: 'limit', issue: 'must be between 1 and 100' });
+  }
+
+  throwIfAny(details);
+}
+
+// ------------------------------------------------------------------ AI (#13)
+
+// POST /requests/faq-check body: { slotId, title, description }
+export function validateFaqCheck(body) {
+  const details = [];
+
+  if (typeof body.slotId !== 'string' || !UUID.test(body.slotId)) {
+    details.push({ field: 'slotId', issue: 'must be a slot id' });
+  }
+  checkText(body.title, 'title', 3, 120, details);
+  checkText(body.description, 'description', 10, 2000, details);
+
+  throwIfAny(details);
+}
+
+// POST /faqs/suggest body: { moduleId? } (only look at requests about one module)
+export function validateFaqSuggest(body) {
+  if (body.moduleId !== undefined && body.moduleId !== null && !Number.isInteger(body.moduleId)) {
+    throwIfAny([{ field: 'moduleId', issue: 'must be a module id or null' }]);
+  }
+}

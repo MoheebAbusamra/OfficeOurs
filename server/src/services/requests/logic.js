@@ -5,6 +5,7 @@ import { publish, EVENTS } from '../../shared/events.js';
 // S2 -> S1: Judy's scheduling rules (which modules a user has, one slot, which slots a student may book)
 import { listModules, getSlot, listSlots } from '../scheduling/logic.js';
 import * as db from './db.js';
+import * as gemini from './gemini.js';
 
 // ------------------------------------------------------------------ FAQ (#13)
 
@@ -443,4 +444,146 @@ export async function changeStatus(user, id, body) {
   // 6. After a confirm, read again so the queue entry S3 just created is in the response
   const fresh = next === 'confirmed' ? await db.findRequestById(id) : updated;
   return shapeRequest(user, fresh);
+}
+
+// ------------------------------------------------------------------ Notifications (#3)
+
+// Database row -> API shape from openapi.yaml
+function toNotificationResponse(row) {
+  return {
+    id: row.id,
+    type: row.type,
+    message: row.message,
+    link: row.link,
+    isRead: row.is_read,
+    createdAt: row.created_at,
+  };
+}
+
+// GET /notifications: my notifications, newest first, plus my unread count for the bell badge
+export async function listNotifications(user, query) {
+  const page = Number(query.page || 1);
+  const limit = Number(query.limit || 20);
+  const from = (page - 1) * limit;
+
+  const { rows, total } = await db.findNotifications({
+    recipientId: user.universityId,
+    unreadOnly: query.unreadOnly === 'true',
+    since: query.since,
+    from,
+    to: from + limit - 1,
+  });
+  const unreadCount = await db.countUnreadNotifications(user.universityId);
+
+  return { data: rows.map(toNotificationResponse), meta: { page, limit, total, unreadCount } };
+}
+
+// PATCH /notifications/:id/read (only your own)
+export async function markNotificationRead(user, id) {
+  const row = await db.findNotificationById(id);
+  if (!row) {
+    throw new AppError(404, 'NOT_FOUND', 'Notification not found');
+  }
+  if (row.recipient_id !== user.universityId) {
+    throw new AppError(403, 'FORBIDDEN', 'This notification is not yours');
+  }
+  const updated = row.is_read ? row : await db.markNotificationRead(id);
+  return toNotificationResponse(updated);
+}
+
+// PATCH /notifications/read-all
+export async function markAllNotificationsRead(user) {
+  const updated = await db.markAllNotificationsRead(user.universityId);
+  return { updated };
+}
+
+// ------------------------------------------------------------------ AI (#13, Gemini)
+
+// How many recent requests the FAQ suggestions look at (enough to spot patterns, small enough to stay fast)
+const SUGGEST_LOOKBACK = 60;
+
+// POST /requests/faq-check: before submitting, does the instructor's FAQ already answer the question?
+// Returns the old fields (matched, faqId, faqQuestion, answer) plus the new ones (verdict, sources, ...)
+export async function checkFaq(user, body) {
+  // 1. The slot tells us whose FAQ to use (S2 -> S1, 404 if the slot does not exist)
+  const slot = await getSlot(user, body.slotId);
+
+  // 2. FAQs for the slot's module plus the general ones (all of them when the slot has no module)
+  const all = await db.findFaqs({ instructorId: slot.instructor.universityId });
+  const faqs = slot.module ? all.filter((f) => f.module_id === null || f.module_id === slot.module.id) : all;
+
+  const noMatch = {
+    matched: false, verdict: 'none', faqId: null, faqQuestion: null, answer: null,
+    sources: [], stillWorthAsking: null, suggestedTitle: null,
+  };
+  if (faqs.length === 0) return noMatch; // nothing to compare with, no need to ask Gemini
+
+  // 3. Gemini reasons over the FAQ (throws 502 AI_UNAVAILABLE if it fails; the student can still continue)
+  const ai = await gemini.checkQuestionAgainstFaq(faqs, { title: body.title.trim(), description: body.description.trim() });
+
+  const sources = ai.usedFaqIds.map((id) => {
+    const faq = faqs.find((f) => f.id === id);
+    return { faqId: faq.id, question: faq.question };
+  });
+  return {
+    matched: ai.verdict !== 'none',
+    verdict: ai.verdict, // answered | partial | none
+    faqId: sources[0]?.faqId ?? null,
+    faqQuestion: sources[0]?.question ?? null,
+    answer: ai.answer,
+    sources, // every FAQ entry the answer is based on
+    stillWorthAsking: ai.stillWorthAsking, // only for "partial"
+    suggestedTitle: ai.suggestedTitle, // a clearer title, or null
+  };
+}
+
+// POST /faqs/suggest (instructors): drafts new FAQ entries from the questions students sent recently
+export async function suggestFaqs(user, body) {
+  if (body.moduleId !== undefined && body.moduleId !== null) await checkModuleIsTaught(user, body.moduleId);
+
+  // 1. The newest requests on my slots (optionally only one module)
+  const slotIds = await db.findSlotIdsOfInstructor(user.universityId);
+  let rows = slotIds.length > 0 ? await db.findRequests({ slotIds }) : [];
+  if (body.moduleId) rows = rows.filter((row) => row.slots.module_id === body.moduleId);
+  rows = rows.slice(0, SUGGEST_LOOKBACK);
+
+  // Patterns need at least 2 questions
+  if (rows.length < 2) return { data: [], meta: { analyzed: rows.length } };
+
+  // 2. Gemini compares them with the current FAQ
+  const faqs = await db.findFaqs({ instructorId: user.universityId });
+  const drafts = await gemini.suggestFaqEntries(
+    rows.map((row) => ({ id: row.id, title: row.title, description: row.description })),
+    faqs,
+  );
+
+  // 3. Add facts we compute ourselves (never taken from the model): how many requests and students, which module
+  const byId = Object.fromEntries(rows.map((row) => [row.id, row]));
+  const data = drafts.map((draft) => {
+    const used = draft.requestIds.map((id) => byId[id]);
+
+    // The module most of these requests were about; null (general) when they are mixed
+    let moduleId = body.moduleId ?? null;
+    if (!moduleId) {
+      const counts = {};
+      for (const row of used) {
+        if (row.slots.module_id) counts[row.slots.module_id] = (counts[row.slots.module_id] || 0) + 1;
+      }
+      for (const [id, count] of Object.entries(counts)) {
+        if (count > used.length / 2) moduleId = Number(id);
+      }
+    }
+
+    return {
+      question: draft.question,
+      answer: draft.answer,
+      moduleId,
+      requestCount: used.length,
+      studentCount: new Set(used.map((row) => row.student_id)).size,
+      exampleTitles: used.slice(0, 3).map((row) => row.title),
+    };
+  });
+  data.sort((a, b) => b.requestCount - a.requestCount);
+
+  return { data, meta: { analyzed: rows.length } };
 }

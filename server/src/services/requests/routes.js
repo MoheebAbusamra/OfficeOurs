@@ -4,10 +4,14 @@ import { requireAuth, requireRole } from '../../shared/auth.js';
 import {
   validateFaqId, validateFaqsQuery, validateFaqInput,
   validateRequestId, validateRequestsQuery, validateCreateRequest, validateUpdateRequest, validateStatusChange,
+  validateNotificationId, validateNotificationsQuery,
+  validateFaqCheck, validateFaqSuggest,
 } from './validation.js';
 import {
   listFaqs, createFaq, updateFaq, deleteFaq,
   listRequests, getRequest, createRequest, updateRequest, changeStatus,
+  listNotifications, markNotificationRead, markAllNotificationsRead,
+  checkFaq, suggestFaqs,
 } from './logic.js';
 
 const router = Router();
@@ -19,6 +23,14 @@ router.get('/faqs', requireAuth, async (req, res) => {
   validateFaqsQuery(req.query, req.user.role);
   const faqs = await listFaqs(req.user, req.query);
   res.json({ data: faqs });
+});
+
+// AI: draft new FAQ entries from recent student questions (instructors only)
+router.post('/faqs/suggest', requireAuth, requireRole('instructor'), async (req, res) => {
+  const body = req.body || {};
+  validateFaqSuggest(body);
+  const result = await suggestFaqs(req.user, body);
+  res.json(result); // { data: [suggestions], meta: { analyzed } }
 });
 
 // Add an FAQ (instructors only)
@@ -54,6 +66,14 @@ router.get('/requests', requireAuth, async (req, res) => {
   res.json(result); // already { data, meta }
 });
 
+// AI: does the instructor's FAQ already answer this question? (before submitting)
+router.post('/requests/faq-check', requireAuth, async (req, res) => {
+  const body = req.body || {};
+  validateFaqCheck(body);
+  const result = await checkFaq(req.user, body);
+  res.json({ data: result });
+});
+
 // Submit a request (students only)
 router.post('/requests', requireAuth, requireRole('student'), async (req, res) => {
   const body = req.body || {};
@@ -85,6 +105,28 @@ router.patch('/requests/:id/status', requireAuth, async (req, res) => {
   validateStatusChange(body);
   const request = await changeStatus(req.user, req.params.id, body);
   res.json({ data: request });
+});
+
+// ------------------------------------------------------------------ Notifications (#3)
+
+// My notifications + unread count (the bell polls this every 5 seconds)
+router.get('/notifications', requireAuth, async (req, res) => {
+  validateNotificationsQuery(req.query);
+  const result = await listNotifications(req.user, req.query);
+  res.json(result); // already { data, meta }
+});
+
+// Mark all of mine as read
+router.patch('/notifications/read-all', requireAuth, async (req, res) => {
+  const result = await markAllNotificationsRead(req.user);
+  res.json({ data: result });
+});
+
+// Mark one as read (only my own)
+router.patch('/notifications/:id/read', requireAuth, async (req, res) => {
+  validateNotificationId(req.params.id);
+  const notification = await markNotificationRead(req.user, req.params.id);
+  res.json({ data: notification });
 });
 
 export default router;
