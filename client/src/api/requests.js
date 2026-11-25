@@ -16,6 +16,7 @@ export const getFaqs = params => http.get('/faqs', params); // { instructorId, m
 export const createFaq = faq => http.post('/faqs', faq);
 export const updateFaq = (id, changes) => http.patch(`/faqs/${id}`, changes);
 export const deleteFaq = id => http.del(`/faqs/${id}`);
+export const suggestFaqs = (body = {}) => http.post('/faqs/suggest', body); // AI drafts from recent requests (instructor)
 
 // Notifications (#3), polled by NotificationBell
 export const getNotifications = params => http.get('/notifications', params); // { unreadOnly, since, page, limit }

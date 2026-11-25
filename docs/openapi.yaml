@@ -19,9 +19,9 @@ security:
 tags:
   - name: S1 Auth
   - name: S1 Scheduling
-  - name: S1 Notifications
   - name: S2 Requests
   - name: S2 FAQ
+  - name: S2 Notifications
   - name: S3 Queue
   - name: S3 History
 
@@ -254,7 +254,7 @@ paths:
   # =================================================================== S1 NOTIFICATIONS
   /notifications:
     get:
-      tags: [S1 Notifications]
+      tags: [S2 Notifications]
       summary: My notifications (#3). The frontend checks this every few seconds.
       parameters:
         - { name: unreadOnly, in: query, schema: { type: boolean } }
@@ -281,7 +281,7 @@ paths:
     parameters:
       - { $ref: '#/components/parameters/id' }
     patch:
-      tags: [S1 Notifications]
+      tags: [S2 Notifications]
       summary: Mark one as read
       responses:
         '200': { description: Updated, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Notification' } } } } } }
@@ -290,7 +290,7 @@ paths:
 
   /notifications/read-all:
     patch:
-      tags: [S1 Notifications]
+      tags: [S2 Notifications]
       summary: Mark all as read
       responses:
         '200': { description: Count updated, content: { application/json: { schema: { type: object, properties: { data: { type: object, properties: { updated: { type: integer } } } } } } } }
@@ -300,7 +300,10 @@ paths:
   /requests/faq-check:
     post:
       tags: [S2 Requests]
-      summary: AI check of the question against the instructor's FAQ before submitting (#13, Gemini)
+      summary: >
+        AI check of the question against the instructor's FAQ before submitting (#13, Gemini).
+        Uses the FAQs of the slot's module plus the general ones. Gemini may combine several entries;
+        only answers backed by a real FAQ entry are returned. Any logged-in user.
       requestBody:
         required: true
         content:
@@ -323,13 +326,24 @@ paths:
                   data:
                     type: object
                     properties:
-                      matched: { type: boolean }
-                      faqId: { type: string, format: uuid, nullable: true }
+                      matched: { type: boolean, description: true for answered and partial }
+                      verdict: { type: string, enum: [answered, partial, none] }
+                      faqId: { type: string, format: uuid, nullable: true, description: First FAQ used }
                       faqQuestion: { type: string, nullable: true }
-                      answer: { type: string, nullable: true, description: AI answer based on the FAQ }
+                      answer: { type: string, nullable: true, description: AI answer based only on the FAQ }
+                      sources:
+                        type: array
+                        description: Every FAQ entry the answer is based on
+                        items:
+                          type: object
+                          properties:
+                            faqId: { type: string, format: uuid }
+                            question: { type: string }
+                      stillWorthAsking: { type: string, nullable: true, description: 'Only for partial: what to ask in the meeting' }
+                      suggestedTitle: { type: string, nullable: true, description: A clearer request title, or null }
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '502': { $ref: '#/components/responses/BadGateway' }
+        '502': { description: 'AI_UNAVAILABLE (Gemini failed); the student can continue without it', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
 
   /requests:
     get:
@@ -455,6 +469,41 @@ paths:
         '201': { description: Created, content: { application/json: { schema: { type: object, properties: { data: { $ref: '#/components/schemas/Faq' } } } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
+
+  /faqs/suggest:
+    post:
+      tags: [S2 FAQ]
+      summary: >
+        AI FAQ suggestions (#13, Gemini, instructor). Reads the newest 60 requests on the instructor's slots,
+        finds topics the FAQ does not cover yet and drafts up to 5 entries. Answers use placeholders
+        like [add the deadline] instead of invented facts. Counts and module are computed by the server.
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { moduleId: { type: integer, nullable: true, description: Only requests about this module } } }
+      responses:
+        '200':
+          description: Suggestions, most asked first (empty when fewer than 2 requests)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        question: { type: string }
+                        answer: { type: string }
+                        moduleId: { type: integer, nullable: true }
+                        requestCount: { type: integer }
+                        studentCount: { type: integer }
+                        exampleTitles: { type: array, items: { type: string } }
+                  meta: { type: object, properties: { analyzed: { type: integer } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '502': { description: AI_UNAVAILABLE (Gemini failed), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
 
   /faqs/{id}:
     parameters:

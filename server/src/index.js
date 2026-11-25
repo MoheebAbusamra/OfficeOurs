@@ -5,6 +5,7 @@ import cors from 'cors';
 import { errorHandler } from './shared/errors.js';
 import authRoutes from './services/auth/routes.js';
 import schedulingRoutes from './services/scheduling/routes.js';
+import requestsRoutes from './services/requests/routes.js';
 
 const app = express();
 app.use(cors({ origin: process.env.CLIENT_URL }));
@@ -15,7 +16,10 @@ app.get('/api/v1/health', (req, res) => res.json({ data: { status: 'ok' } }));
 // S1 Scheduling & Access
 app.use('/api/v1', authRoutes);
 app.use('/api/v1', schedulingRoutes);
-// S2 and S3 mount their routers here the same way
+
+// S2 Requests, FAQ & Notifications
+app.use('/api/v1', requestsRoutes);
+// S3 mounts its router here the same way
 
 // Unknown URL -> 404 in the standard error format (must stay after all routers)
 app.use((req, res) => {
