@@ -7,4 +7,12 @@ export default defineConfig({
   plugins: [react()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   server: { port: 5173 },
+  // [S3] Vite 8 dev can pre-bundle libraries in separate passes, each with its own copy of React, which crashes
+  // every page with "Invalid hook call". Listing them here bundles them together in one pass with a single React.
+  optimizeDeps: {
+    include: [
+      'react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'react/jsx-dev-runtime',
+      'react-router-dom', 'lucide-react', 'motion/react', 'three',
+    ],
+  },
 });
