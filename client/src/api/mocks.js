@@ -216,9 +216,21 @@ const routes = [
   ['POST', '/requests/faq-check', (p, q, b) => {
     const err = required(b, ['slotId', 'title', 'description']); if (err) return err;
     const s = slots.find(x => x.id === b.slotId); if (!s) return fail(404, 'NOT_FOUND', 'Slot not found');
+    // Fake AI: score = shared words. 2+ = answered, 1 = partly answered. Same response shape as the real Gemini check.
     const words = `${b.title} ${b.description}`.toLowerCase().split(/\W+/).filter(w => w.length > 3);
-    const hit = faqs.filter(f => f.instructorId === s.instructorId).map(f => ({ f, score: words.filter(w => f.question.toLowerCase().includes(w)).length })).sort((a, c) => c.score - a.score)[0];
-    return ok(hit?.score >= 2 ? { matched: true, faqId: hit.f.id, faqQuestion: hit.f.question, answer: hit.f.answer } : { matched: false, faqId: null, faqQuestion: null, answer: null });
+    const hits = faqs.filter(f => f.instructorId === s.instructorId).map(f => ({ f, score: words.filter(w => f.question.toLowerCase().includes(w)).length })).filter(h => h.score > 0).sort((a, c) => c.score - a.score);
+    const titleWords = b.title.trim().split(/\s+/);
+    const suggestedTitle = titleWords.length < 4 ? `${b.title.trim()}: ${b.description.trim().split(/\s+/).slice(0, 6).join(' ')}`.slice(0, 80) : null;
+    if (!hits.length) return ok({ matched: false, verdict: 'none', faqId: null, faqQuestion: null, answer: null, sources: [], stillWorthAsking: null, suggestedTitle });
+    const verdict = hits[0].score >= 2 ? 'answered' : 'partial';
+    const used = hits.slice(0, 2);
+    return ok({
+      matched: true, verdict, faqId: used[0].f.id, faqQuestion: used[0].f.question,
+      answer: used.map(h => h.f.answer).join(' '),
+      sources: used.map(h => ({ faqId: h.f.id, question: h.f.question })),
+      stillWorthAsking: verdict === 'partial' ? 'Ask about the parts of your setup that the FAQ does not mention.' : null,
+      suggestedTitle,
+    });
   }],
   ['GET', '/requests', (p, q, b, u) => {
     const list = requests.filter(r => (u.role === 'student' ? r.studentId === u.universityId : slots.find(s => s.id === r.slotId)?.instructorId === u.universityId)
@@ -268,6 +280,16 @@ const routes = [
     Object.assign(r, b, { updatedAt: now() }); return ok(requestOut(r, u));
   }],
   ['GET', '/faqs', (p, q, b, u) => ok(faqs.filter(f => f.instructorId === (q.instructorId || u.universityId) && (!q.q || f.question.toLowerCase().includes(q.q.toLowerCase()))))],
+  ['POST', '/faqs/suggest', (p, q, b, u) => {
+    // Fake AI: two fixed drafts, with real counts and titles from this instructor's mock requests
+    const mine = requests.filter(r => slots.find(s => s.id === r.slotId)?.instructorId === u.universityId);
+    if (mine.length < 2) return ok([], { analyzed: mine.length });
+    const idea = (rs, question, answer, moduleId) => ({ question, answer, moduleId, requestCount: rs.length, studentCount: new Set(rs.map(r => r.studentId)).size, exampleTitles: rs.slice(0, 3).map(r => r.title) });
+    return ok([
+      idea(mine.slice(0, 2), 'Why does API Gateway return 502 on Floci, and how do I fix it?', 'Most 502s come from a wrong Lambda handler name or a missing return value. Check the logs with [add the log command] and compare with the lab sheet at [add the link].', 1),
+      idea(mine.slice(-1), 'Which cloud service model should our project use?', 'Most projects fit [add the recommended model]. Justify your choice in the report section [add the section number].', null),
+    ], { analyzed: mine.length });
+  }],
   ['POST', '/faqs', (p, q, b, u) => { const err = required(b, ['question', 'answer']); if (err) return err; const f = { id: newId('faq'), instructorId: u.universityId, moduleId: null, ...b }; faqs.push(f); return ok(f, null, 201); }],
   ['PATCH', '/faqs/:id', (p, q, b) => { const f = faqs.find(x => x.id === p.id); if (!f) return fail(404, 'NOT_FOUND', 'FAQ not found'); Object.assign(f, b); return ok(f); }],
   ['DELETE', '/faqs/:id', (p) => { const i = faqs.findIndex(x => x.id === p.id); if (i < 0) return fail(404, 'NOT_FOUND', 'FAQ not found'); faqs.splice(i, 1); return { status: 204, json: null }; }],

@@ -473,3 +473,62 @@ kbd { display: inline-grid; place-items: center; min-width: 22px; height: 22px; 
 
 .list-zero { display: grid; justify-items: center; gap: 0.25rem; padding: 2rem 1rem; text-align: center; }
 .list-zero .hand { color: var(--burgundy); font-size: 1.2rem; }
+
+/* =====================================================================
+   AI: FAQ ideas from student requests (Faqs)
+   ===================================================================== */
+
+/* ---------- Shared AI animations ---------- */
+@keyframes verdict-pop { from { opacity: 0; transform: scale(0.85) rotate(-2deg); } to { opacity: 1; transform: none; } }
+@keyframes twinkle { 0%, 100% { transform: scale(1) rotate(0); opacity: 1; } 50% { transform: scale(1.25) rotate(18deg); opacity: 0.7; } }
+
+/* ---------- FAQ page: header buttons ---------- */
+.faq-head-buttons { display: flex; flex-direction: column; align-items: stretch; gap: 0.6rem; }
+.btn.ai-btn { background: var(--blue-soft); }
+.btn.ai-btn:hover svg { animation: twinkle 0.9s ease-in-out infinite; }
+
+/* ---------- FAQ ideas sheet ---------- */
+.sheet-lg { width: min(700px, 94vw); }
+.ideas-loading { display: grid; justify-items: center; gap: 0.5rem; padding: 0.5rem 0 0.25rem; }
+.ideas-loading .hand { color: var(--burgundy); font-size: 1.15rem; }
+.ideas-skeleton { width: 100%; display: grid; gap: 0.75rem; margin-top: 0.5rem; }
+.ideas-skeleton span {
+  display: block; height: 92px; border-radius: var(--wobble-sm); border: 1.5px dashed rgba(89, 10, 28, 0.2);
+  background: linear-gradient(90deg, #f3ece0 0%, #faf6ee 50%, #f3ece0 100%) 0 0 / 200% 100%; animation: shimmer 1.2s linear infinite;
+}
+.ideas-skeleton span:nth-child(2) { animation-delay: -0.4s; opacity: 0.75; }
+.ideas-skeleton span:nth-child(3) { animation-delay: -0.8s; opacity: 0.5; }
+.ideas-empty { display: grid; justify-items: center; gap: 0.35rem; padding: 1.25rem 0; text-align: center; }
+.ideas-empty svg { color: var(--success); animation: verdict-pop 0.45s var(--ease) both; }
+.ideas-empty .hand { font-size: 1.4rem; color: var(--burgundy); }
+.ideas-intro { font-size: 0.92rem; }
+.ideas-list { list-style: none; margin: 0; padding: 0 4px 6px 0; display: grid; gap: 1rem; }
+.idea-card {
+  display: grid; gap: 0.55rem; padding: 1rem 1.1rem; background: var(--white);
+  border: var(--line); border-radius: var(--wobble-sm); box-shadow: 3px 3px 0 var(--burgundy);
+  animation: card-in 0.4s var(--ease) both; animation-delay: calc(var(--i) * 90ms);
+}
+.idea-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.idea-card .faq-module { margin: 0; padding: 0; border: 0; }
+.idea-count {
+  display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.65rem;
+  font-size: 0.82rem; font-weight: 700; background: var(--butter); border: 1.5px solid var(--ink); border-radius: 999px;
+}
+.idea-from { font-size: 0.85rem; color: var(--ink-muted); }
+.idea-from q { margin-left: 0.35rem; font-weight: 600; color: var(--ink); }
+.idea-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; padding-top: 0.6rem; border-top: 1.5px dashed rgba(89, 10, 28, 0.2); }
+
+/* ---------- [add ...] placeholders ---------- */
+mark.ph { padding: 0 0.25rem; font-weight: 600; color: var(--ink); background: var(--butter); border-bottom: 2px dashed var(--burgundy); border-radius: 4px; }
+.ph-hint { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: -0.55rem; font-size: 0.85rem; font-weight: 600; color: var(--burgundy); }
+.ph-chip {
+  font: inherit; font-size: 0.8rem; padding: 0.15rem 0.6rem; color: var(--ink); cursor: pointer;
+  background: var(--butter); border: 1.5px dashed var(--burgundy); border-radius: 999px; transition: background 0.15s, transform 0.15s var(--ease);
+}
+.ph-chip:hover { background: var(--white); transform: translateY(-1px); }
+.ph-shake { animation: shake 0.45s ease both; }
+@keyframes shake { 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
+
+@media (max-width: 640px) {
+  .faq-head-buttons { flex-direction: row; flex-wrap: wrap; }
+}
