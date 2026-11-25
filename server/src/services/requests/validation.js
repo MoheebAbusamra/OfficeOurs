@@ -66,3 +66,123 @@ export function validateFaqInput(body, partial = false) {
 
   throwIfAny(details);
 }
+
+// ------------------------------------------------------------------ Requests (#2, #5, #6, #9)
+
+const STATUSES = ['pending', 'confirmed', 'rejected', 'cancelled', 'completed'];
+const PRIORITIES = ['low', 'normal', 'high'];
+const SORTS = ['newest', 'oldest', 'priority', 'slotDate'];
+// A time like 09:30 (hours 00-23, minutes 00-59)
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+// /requests/:id must look like a uuid, otherwise the request cannot exist
+export function validateRequestId(id) {
+  if (!UUID.test(id)) {
+    throw new AppError(404, 'NOT_FOUND', 'Request not found');
+  }
+}
+
+// GET /requests?status=&priority=&slotId=&moduleId=&unopened=&q=&sort=&page=&limit=
+export function validateRequestsQuery(query) {
+  const details = [];
+
+  if (query.status !== undefined && !STATUSES.includes(query.status)) {
+    details.push({ field: 'status', issue: `must be one of ${STATUSES.join(', ')}` });
+  }
+  if (query.priority !== undefined && !PRIORITIES.includes(query.priority)) {
+    details.push({ field: 'priority', issue: 'must be low, normal or high' });
+  }
+  if (query.slotId !== undefined && !UUID.test(query.slotId)) {
+    details.push({ field: 'slotId', issue: 'must be a slot id' });
+  }
+  if (query.moduleId !== undefined && !/^\d+$/.test(query.moduleId)) {
+    details.push({ field: 'moduleId', issue: 'must be a whole number' });
+  }
+  if (query.unopened !== undefined && query.unopened !== 'true' && query.unopened !== 'false') {
+    details.push({ field: 'unopened', issue: 'must be true or false' });
+  }
+  if (query.q !== undefined && (typeof query.q !== 'string' || query.q.length > 100)) {
+    details.push({ field: 'q', issue: 'must be at most 100 characters' });
+  }
+  if (query.sort !== undefined && !SORTS.includes(query.sort)) {
+    details.push({ field: 'sort', issue: `must be one of ${SORTS.join(', ')}` });
+  }
+  if (query.page !== undefined && (!/^\d+$/.test(query.page) || Number(query.page) < 1)) {
+    details.push({ field: 'page', issue: 'must be 1 or more' });
+  }
+  if (query.limit !== undefined && (!/^\d+$/.test(query.limit) || Number(query.limit) < 1 || Number(query.limit) > 100)) {
+    details.push({ field: 'limit', issue: 'must be between 1 and 100' });
+  }
+
+  throwIfAny(details);
+}
+
+// Checks the fields that POST and PATCH share. Only checks the fields that are present.
+function checkRequestFields(body, details) {
+  const has = (field) => body[field] !== undefined;
+
+  if (has('title')) checkText(body.title, 'title', 3, 120, details);
+  if (has('description')) checkText(body.description, 'description', 10, 2000, details);
+  if (has('preferredStart') && (typeof body.preferredStart !== 'string' || !TIME.test(body.preferredStart))) {
+    details.push({ field: 'preferredStart', issue: 'must be a time like 10:00' });
+  }
+  if (has('preferredEnd') && (typeof body.preferredEnd !== 'string' || !TIME.test(body.preferredEnd))) {
+    details.push({ field: 'preferredEnd', issue: 'must be a time like 10:15' });
+  }
+  // Both times valid -> the end must come after the start ("10:15" > "10:00" works as text)
+  if (TIME.test(body.preferredStart) && TIME.test(body.preferredEnd) && body.preferredEnd <= body.preferredStart) {
+    details.push({ field: 'preferredEnd', issue: 'must be after the start time' });
+  }
+  if (has('priority') && !PRIORITIES.includes(body.priority)) {
+    details.push({ field: 'priority', issue: 'must be low, normal or high' });
+  }
+}
+
+// POST /requests body: { slotId, title, description, preferredStart, preferredEnd, priority?, faqSuggestion? }
+export function validateCreateRequest(body) {
+  const details = [];
+
+  if (typeof body.slotId !== 'string' || !UUID.test(body.slotId)) {
+    details.push({ field: 'slotId', issue: 'must be a slot id' });
+  }
+  // Required fields: report "missing" once here, the format checks below handle the rest
+  for (const field of ['title', 'description', 'preferredStart', 'preferredEnd']) {
+    if (body[field] === undefined) details.push({ field, issue: 'is required' });
+  }
+  checkRequestFields(body, details);
+  // The AI answer the student saw and chose to continue past (null = no match)
+  if (body.faqSuggestion !== undefined && body.faqSuggestion !== null
+    && (typeof body.faqSuggestion !== 'string' || body.faqSuggestion.length > 2000)) {
+    details.push({ field: 'faqSuggestion', issue: 'must be text up to 2000 characters or null' });
+  }
+
+  throwIfAny(details);
+}
+
+// PATCH /requests/:id body: any of { title, description, preferredStart, preferredEnd, priority }
+export function validateUpdateRequest(body) {
+  const details = [];
+  const fields = ['title', 'description', 'preferredStart', 'preferredEnd', 'priority'];
+
+  if (!fields.some((field) => body[field] !== undefined)) {
+    details.push({ field: 'body', issue: `send at least one of ${fields.join(', ')}` });
+  }
+  checkRequestFields(body, details);
+
+  throwIfAny(details);
+}
+
+// PATCH /requests/:id/status body: { status, reason? }. A reason is required to reject or cancel.
+export function validateStatusChange(body) {
+  const details = [];
+
+  if (!['confirmed', 'rejected', 'cancelled'].includes(body.status)) {
+    details.push({ field: 'status', issue: 'must be confirmed, rejected or cancelled' });
+  }
+  const needsReason = body.status === 'rejected' || body.status === 'cancelled';
+  if (needsReason || (body.reason !== undefined && body.reason !== null)) {
+    checkText(body.reason, 'reason', needsReason ? 5 : 0, 500, details);
+  }
+
+  throwIfAny(details);
+}

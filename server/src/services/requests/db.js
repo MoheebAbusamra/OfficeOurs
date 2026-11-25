@@ -44,3 +44,83 @@ export async function deleteFaq(id) {
   const { error } = await supabase.from('faqs').delete().eq('id', id);
   if (error) throw error;
 }
+
+// ------------------------------------------------------------------ Requests (#2, #5, #6, #9)
+
+// The columns we read for a request. The parts in brackets join other tables through foreign keys:
+//   university_registry(...)  the student (requests.student_id)
+//   slots(...)                the slot, with its instructor and module (S1's table, read only)
+//   queue_entries(...)        the queue entry once S3 has queued the request (S3's table, read only)
+// "!name_fkey" tells Supabase which foreign key to follow, because requests and slots are also
+// linked through S3's queue_entries and meetings tables
+const REQUEST_COLUMNS = `
+  id, student_id, slot_id, title, description, preferred_start, preferred_end, priority, status,
+  faq_suggestion, opened_at, status_reason, cancelled_by, created_at, updated_at,
+  university_registry!requests_student_id_fkey(university_id, full_name),
+  slots!requests_slot_id_fkey(id, instructor_id, module_id, slot_date, start_time, end_time, location, capacity, status,
+        university_registry!slots_instructor_id_fkey(university_id, full_name),
+        modules(id, code, name)),
+  queue_entries!queue_entries_request_id_fkey(id, status)
+`;
+
+// Ids of all slots of one instructor (to find the requests of their inbox)
+export async function findSlotIdsOfInstructor(instructorId) {
+  const { data, error } = await supabase.from('slots').select('id').eq('instructor_id', instructorId);
+  if (error) throw error;
+  return data.map((row) => row.id);
+}
+
+// Requests with optional filters. Only the filters that are given are added to the query.
+export async function findRequests(filters) {
+  let query = supabase.from('requests').select(REQUEST_COLUMNS);
+
+  if (filters.studentId) query = query.eq('student_id', filters.studentId);
+  if (filters.slotIds) query = query.in('slot_id', filters.slotIds);
+  if (filters.slotId) query = query.eq('slot_id', filters.slotId);
+  if (filters.status) query = query.eq('status', filters.status);
+  if (filters.priority) query = query.eq('priority', filters.priority);
+  if (filters.unopened) query = query.is('opened_at', null);
+
+  const { data, error } = await query.order('created_at', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+// One request by id, or null
+export async function findRequestById(id) {
+  const { data, error } = await supabase.from('requests').select(REQUEST_COLUMNS).eq('id', id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+// The confirmed requests of these slots (only slot_id, to count the taken seats per slot)
+export async function findConfirmedRequests(slotIds) {
+  const { data, error } = await supabase
+    .from('requests')
+    .select('slot_id')
+    .eq('status', 'confirmed')
+    .in('slot_id', slotIds);
+  if (error) throw error;
+  return data;
+}
+
+// Saves a new request and returns it.
+// A second active request for the same slot breaks the unique index -> error code 23505 (handled in logic.js)
+export async function insertRequest(request) {
+  const { data, error } = await supabase.from('requests').insert(request).select(REQUEST_COLUMNS).single();
+  if (error) throw error;
+  return data;
+}
+
+// Changes some columns of a request and returns it (updated_at is set by a trigger).
+// "expected" makes the change safe when two people click at the same time: the row is only changed
+// if it is still in that state, e.g. { status: 'pending', unopened: true }. Returns null if it was not.
+export async function updateRequest(id, changes, expected = {}) {
+  let query = supabase.from('requests').update(changes).eq('id', id);
+  if (expected.status) query = query.eq('status', expected.status);
+  if (expected.unopened) query = query.is('opened_at', null);
+
+  const { data, error } = await query.select(REQUEST_COLUMNS).maybeSingle();
+  if (error) throw error;
+  return data;
+}
