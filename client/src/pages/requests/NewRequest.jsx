@@ -10,22 +10,18 @@ import PageHeader from '@/components/PageHeader';
 import Alert from '@/components/Alert';
 import CountedField from './CountedField';
 import ThinkingStudent from './ThinkingStudent';
+import TimeWindowPicker from './TimeWindowPicker';
+import { fitDuration, prettyDate, todayIso, toMin, toTime } from './time';
 import './requests.css';
 
 const STEPS = ['Question', 'AI check', 'Time', 'Review'];
 const LIMITS = { title: [3, 120], description: [10, 2000] };
-const DURATIONS = [10, 15, 20, 30];
 const PRIORITIES = [
   { value: 'low', label: 'Low', hint: 'Whenever there is time' },
   { value: 'normal', label: 'Normal', hint: 'A regular question' },
   { value: 'high', label: 'High', hint: 'Blocking my work or a deadline' },
 ];
 
-// "10:00" or "10:00:00" <-> minutes since midnight
-const toMin = t => { const [h, m] = t.slice(0, 5).split(':').map(Number); return h * 60 + m; };
-const toTime = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-const prettyDate = d => new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }; // local date, not UTC
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const blockedReason = s => (!s ? null
   : s.status !== 'active' ? 'This slot was cancelled.'
@@ -80,49 +76,6 @@ function SlotTicket({ slot, loading, blocked }) {
       )}
       {blocked && <p className="ticket-blocked" role="alert">{blocked}</p>}
     </aside>
-  );
-}
-
-// ---------- Start chips + length + a mini timeline of the slot ----------
-function TimePicker({ slot, start, duration, onStart, onDuration, error }) {
-  const s0 = toMin(slot.startTime);
-  const s1 = toMin(slot.endTime);
-  const st = toMin(start);
-  const starts = [];
-  for (let m = s0; m + DURATIONS[0] <= s1; m += 5) starts.push(m);
-
-  return (
-    <div className="stack">
-      <fieldset className="plain-fieldset">
-        <legend className="label">Start time</legend>
-        <div className="time-chips">
-          {starts.map(m => (
-            <button key={m} type="button" className="time-chip" aria-pressed={m === st} onClick={() => onStart(toTime(m))}>{toTime(m)}</button>
-          ))}
-        </div>
-      </fieldset>
-
-      <fieldset className="plain-fieldset">
-        <legend className="label">How long do you need?</legend>
-        <div className="segmented">
-          {DURATIONS.map(d => (
-            <button key={d} type="button" aria-pressed={d === duration} disabled={st + d > s1} onClick={() => onDuration(d)}>{d} min</button>
-          ))}
-        </div>
-      </fieldset>
-
-      <div>
-        <div className="slot-bar" aria-hidden="true">
-          <span className="slot-bar-window" style={{ left: `${((st - s0) / (s1 - s0)) * 100}%`, width: `${(duration / (s1 - s0)) * 100}%` }} />
-        </div>
-        <div className="slot-bar-labels">
-          <span>{toTime(s0)}</span>
-          <strong aria-live="polite">{start} to {toTime(st + duration)}</strong>
-          <span>{toTime(s1)}</span>
-        </div>
-      </div>
-      {error && <span className="field-error" role="alert">{error}</span>}
-    </div>
   );
 }
 
@@ -193,9 +146,7 @@ export default function NewRequest() {
 
   // ----- Step 3: keep the window inside the slot -----
   const setStart = start => {
-    const room = toMin(slot.endTime) - toMin(start);
-    const duration = form.duration <= room ? form.duration : [...DURATIONS].reverse().find(d => d <= room);
-    setForm({ ...form, start, duration });
+    setForm({ ...form, start, duration: fitDuration(slot.endTime, start, form.duration) });
     setErrors({ ...errors, window: '' });
   };
 
@@ -371,7 +322,7 @@ export default function NewRequest() {
               {step === 2 && slot && (
                 <form className="form nr-panel" onSubmit={e => { e.preventDefault(); goTo(3); }} noValidate>
                   <h2 ref={headingRef} tabIndex={-1}>When, and how urgent?</h2>
-                  <TimePicker slot={slot} start={form.start} duration={form.duration} onStart={setStart}
+                  <TimeWindowPicker slot={slot} start={form.start} duration={form.duration} onStart={setStart}
                     onDuration={d => setForm({ ...form, duration: d })} error={errors.window} />
 
                   <fieldset className="plain-fieldset">
