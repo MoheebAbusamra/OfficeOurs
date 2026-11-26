@@ -25,6 +25,7 @@ const BUCKET = process.env.S3_BUCKET || 'officeours-qr';
 const QUEUE = 'officeours-request-confirmed';
 const TOPIC = 'officeours-request-events'; // S2 publishes RequestConfirmed here
 const LAMBDA = process.env.QUEUE_LAMBDA_NAME || 'officeours-queue-worker';
+const RUNTIME = 'nodejs22.x'; // supabase-js needs the native WebSocket of Node 22+
 const SENDER = process.env.SES_SENDER_EMAIL && process.env.SES_SENDER_EMAIL !== 'placeholder@example.com'
   ? process.env.SES_SENDER_EMAIL : 'no-reply@officeours.test';
 
@@ -106,11 +107,11 @@ async function worker() {
   if (exists) {
     await lambda.send(new UpdateFunctionCodeCommand({ FunctionName: LAMBDA, ZipFile }));
     await waitUntilFunctionUpdated({ client: lambda, maxWaitTime: 60 }, { FunctionName: LAMBDA }).catch(() => {});
-    await lambda.send(new UpdateFunctionConfigurationCommand({ FunctionName: LAMBDA, Environment, Timeout: 30 }));
+    await lambda.send(new UpdateFunctionConfigurationCommand({ FunctionName: LAMBDA, Runtime: RUNTIME, Environment, Timeout: 30 }));
   } else {
     await lambda.send(new CreateFunctionCommand({
       FunctionName: LAMBDA,
-      Runtime: 'nodejs20.x',
+      Runtime: RUNTIME,
       Handler: 'index.handler',
       Role: 'arn:aws:iam::000000000000:role/officeours-lambda', // Floci does not check IAM roles
       Code: { ZipFile },

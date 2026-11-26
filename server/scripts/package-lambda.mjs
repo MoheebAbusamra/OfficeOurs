@@ -15,7 +15,7 @@ export async function packageLambda() {
     outfile: join(outDir, 'index.js'),
     bundle: true,
     platform: 'node',
-    target: 'node20',
+    target: 'node22',
     format: 'cjs', // Lambda handler "index.handler"
     minify: true,
     logLevel: 'warning',

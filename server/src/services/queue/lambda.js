@@ -5,14 +5,16 @@ import { handleMessageBody } from './events.js';
 // event = { Records: [{ messageId, body }] } (SQS shape). Failed messages are reported back so only they are retried.
 export async function handler(event) {
   const batchItemFailures = [];
+  const results = []; // read by the local SQS consumer to log the email outcome; real SQS ignores it
   for (const record of event?.Records || []) {
     try {
       const result = await handleMessageBody(record.body);
+      results.push(result);
       console.log(`[S3 lambda] ${record.messageId}: ${JSON.stringify(result)}`);
     } catch (err) {
       console.error(`[S3 lambda] ${record.messageId} failed: ${err.message}`);
       batchItemFailures.push({ itemIdentifier: record.messageId });
     }
   }
-  return { batchItemFailures };
+  return { batchItemFailures, results };
 }

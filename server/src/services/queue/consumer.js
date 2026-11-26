@@ -17,8 +17,20 @@ async function runInLambda(lambda, message) {
   }));
   const payload = out.Payload ? JSON.parse(Buffer.from(out.Payload).toString() || '{}') : {};
   if (out.FunctionError || payload.batchItemFailures?.length) {
-    throw new Error(`Lambda failed: ${out.FunctionError || 'message reported as failed'}`);
+    throw new Error(`Lambda failed: ${payload.errorMessage || out.FunctionError || 'message reported as failed'}`);
   }
+  return payload.results?.[0];
+}
+
+// One line per processed message, so the ticket email outcome shows in the server terminal
+function logResult(result) {
+  if (!result?.queueEntryId) return console.log('[S3] message processed:', JSON.stringify(result));
+  const brevo = result.delivery?.brevo;
+  const email = !result.created ? 'already queued, no email sent'
+    : brevo?.status === 'sent' ? `email sent to ${result.to} (Brevo ${brevo.messageId})`
+    : brevo?.status === 'skipped' ? 'email skipped: BREVO_API_KEY or BREVO_SENDER_EMAIL not set in the Lambda (run npm run floci:setup)'
+    : `email FAILED to ${result.to || '(student has no email)'}: ${brevo?.error}`;
+  console.log(`[S3] request ${result.requestId} queued at #${result.position}; ${email}`);
 }
 
 export function startQueueConsumer() {
@@ -40,8 +52,7 @@ export function startQueueConsumer() {
         }));
         for (const message of Messages) {
           try {
-            if (lambda) await runInLambda(lambda, message);
-            else await handleMessageBody(message.Body);
+            logResult(lambda ? await runInLambda(lambda, message) : await handleMessageBody(message.Body));
             await sqs.send(new DeleteMessageCommand({ QueueUrl: queueUrl, ReceiptHandle: message.ReceiptHandle }));
           } catch (err) {
             // Not deleted: SQS shows it again after the visibility timeout, then moves it to the dead-letter queue

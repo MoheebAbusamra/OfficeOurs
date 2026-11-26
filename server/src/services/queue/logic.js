@@ -342,7 +342,7 @@ export async function sendTicket(entry, request) {
 export async function processRequestConfirmed(requestId) {
   const { entry, request, created } = await addToQueue(requestId);
   const delivery = created ? await sendTicket(entry, request) : null;
-  return { queueEntryId: entry.id, position: entry.position, created, delivery };
+  return { requestId, queueEntryId: entry.id, position: entry.position, created, to: request.student?.email, delivery };
 }
 
 // When S2 cancels a confirmed request, its queue entry is taken out of the line

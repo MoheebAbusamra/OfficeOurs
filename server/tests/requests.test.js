@@ -2,6 +2,7 @@
 // Like S1's tests, they call the running backend (npm run dev) on the real Supabase database.
 // Run from the server folder: npm test -- tests/requests.test.js
 // Needs TEST_PASSWORD in server/.env (the password of the test accounts 241339, 248690, I-1001 and I-1002).
+// Optional: TEST_STUDENT_ID + TEST_STUDENT_PASSWORD to submit the request as another student (who gets the QR email).
 //
 // The tests run top to bottom and share state: the FAQ and the request created early on are used by later tests.
 // Everything they create is cleaned up at the end (the FAQ is deleted, the request is cancelled).
@@ -14,9 +15,12 @@ jest.setTimeout(30000);
 
 const API = 'http://localhost:3000/api/v1';
 const PASSWORD = process.env.TEST_PASSWORD;
+// The student who submits the request; their email gets the real QR ticket when it is confirmed
+const STUDENT_ID = process.env.TEST_STUDENT_ID || '241339';
+const STUDENT_PASSWORD = process.env.TEST_STUDENT_PASSWORD || PASSWORD;
 const TITLE = `Jest S2 test ${Date.now()}`; // unique, so we can find "our" request and notifications
 
-let judy; // student 241339
+let judy; // the test student (TEST_STUDENT_ID, default 241339)
 let moheeb; // student 248690 (only used for "not your request")
 let sara; // instructor I-1001, teaches modules 1 and 2
 let omar; // instructor I-1002, teaches modules 3 and 4
@@ -32,9 +36,9 @@ const addMinutes = (time, minutes) => {
 };
 
 // Logs in and returns "Bearer <token>". Registering first is harmless: 201 the first time, 409 after that.
-async function login(universityId) {
-  await request(API).post('/auth/register').send({ universityId, password: PASSWORD });
-  const res = await request(API).post('/auth/login').send({ universityId, password: PASSWORD });
+async function login(universityId, password = PASSWORD) {
+  await request(API).post('/auth/register').send({ universityId, password });
+  const res = await request(API).post('/auth/login').send({ universityId, password });
   if (!res.body.data) {
     throw new Error(`Login failed for ${universityId}: is the server running (npm run dev) and is TEST_PASSWORD in server/.env correct?`);
   }
@@ -42,7 +46,7 @@ async function login(universityId) {
 }
 
 beforeAll(async () => {
-  [judy, moheeb, sara, omar] = await Promise.all([login('241339'), login('248690'), login('I-1001'), login('I-1002')]);
+  [judy, moheeb, sara, omar] = await Promise.all([login(STUDENT_ID, STUDENT_PASSWORD), login('248690'), login('I-1001'), login('I-1002')]);
 
   // Pick one of Dr Sara's future slots that Judy can book: not full, not today, no active request of hers yet
   const today = new Date().toLocaleDateString('en-CA');
@@ -50,7 +54,7 @@ beforeAll(async () => {
   const mine = await request(API).get('/requests?limit=100').set('Authorization', judy);
   const busy = mine.body.data.filter((r) => ['pending', 'confirmed'].includes(r.status)).map((r) => r.slot.id);
   slot = slots.body.data.find((s) => !s.isFull && s.status === 'active' && s.slotDate > today && !busy.includes(s.id));
-  if (!slot) throw new Error('No bookable slot of I-1001 found for 241339. Re-run supabase/seed.sql to get fresh slots.');
+  if (!slot) throw new Error(`No bookable slot of I-1001 found for ${STUDENT_ID}. Re-run supabase/seed.sql to get fresh slots.`);
 });
 
 afterAll(async () => {
