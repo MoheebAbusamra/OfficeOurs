@@ -12,6 +12,8 @@ import {
   waitUntilFunctionUpdated,
 } from '@aws-sdk/client-lambda';
 import { packageLambda } from './package-lambda.mjs';
+// [S1] Judy's setup for S1's AWS services. Its code stays in S1's own folder, it is only called below.
+import { setupS1 } from '../src/services/scheduling/floci-setup.js';
 
 process.env.AWS_ENDPOINT_URL ||= 'http://localhost:4566';
 const config = {
@@ -130,6 +132,9 @@ try {
   const topicArn = await topic(queueArn, queueUrl);
   await sesIdentity();
   await worker();
+    // [S1] Also create S1's resources (DynamoDB, IAM, Lambda, EventBridge, API Gateway) in the same Floci,
+  // so the whole group needs only this one command (PROJECT_CONTEXT section 10: "one setup script").
+  await setupS1();
   console.log('\nDone. Put these in server/.env:');
   console.log(`  AWS_ENDPOINT_URL=${config.endpoint}`);
   console.log(`  S3_BUCKET=${BUCKET}`);
