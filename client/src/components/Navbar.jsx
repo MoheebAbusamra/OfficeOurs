@@ -1,6 +1,6 @@
 // [S2] Shared top navigation; menu changes by role (student/instructor)
 import { useState } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import {
   CalendarDays, CalendarPlus, ClipboardList, History, Inbox, LayoutDashboard, LogOut, Menu,
   MessageCircleQuestion, NotebookPen, X,
@@ -10,8 +10,8 @@ import NotificationBell from './NotificationBell';
 
 const LINKS = {
   student: [
-    { to: '/student/slots', label: 'Book a slot', icon: CalendarDays },
-    { to: '/student/requests', label: 'My requests', icon: ClipboardList },
+    { to: '/student/slots', label: 'Book a slot', icon: CalendarDays, also: ['/student/requests/new'] }, // booking flow counts as "Book a slot"
+    { to: '/student/requests', label: 'My requests', icon: ClipboardList, end: true },
     { to: '/student/history', label: 'History', icon: History },
   ],
   instructor: [
@@ -26,6 +26,7 @@ const LINKS = {
 export default function Navbar() {
   const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
+  const { pathname } = useLocation();
 
   return (
     <header className="nav">
@@ -36,8 +37,9 @@ export default function Navbar() {
         </Link>
 
         <div className={`nav-links${open ? ' open' : ''}`}>
-          {LINKS[user.role].map(({ to, label, icon: Icon }) => (
-            <NavLink key={to} to={to} className="nav-link" onClick={() => setOpen(false)}>
+          {LINKS[user.role].map(({ to, label, icon: Icon, also = [], end }) => (
+            <NavLink key={to} to={to} end={end} onClick={() => setOpen(false)}
+              className={({ isActive }) => `nav-link${isActive || also.includes(pathname) ? ' active' : ''}`}>
               <Icon size={18} aria-hidden="true" /> {label}
             </NavLink>
           ))}

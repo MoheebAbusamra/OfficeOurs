@@ -5,6 +5,9 @@ import cors from 'cors';
 import { errorHandler, notFoundHandler } from './shared/errors.js';
 import queueRoutes from './services/queue/routes.js';
 import { startQueueConsumer } from './services/queue/consumer.js';
+import authRoutes from './services/auth/routes.js';
+import schedulingRoutes from './services/scheduling/routes.js';
+import requestsRoutes from './services/requests/routes.js';
 
 export const app = express();
 app.use(cors({ origin: process.env.CLIENT_URL }));
@@ -12,8 +15,30 @@ app.use(express.json({ limit: '100kb' }));
 
 app.get('/api/v1/health', (req, res) => res.json({ data: { status: 'ok' } }));
 
-// One router per service. S1 and S2 add theirs here when their routes.js exports a router.
-app.use('/api/v1', queueRoutes); // [S3] queue, check-in, meetings
+// S1 Scheduling & Access
+app.use('/api/v1', authRoutes);
+app.use('/api/v1', schedulingRoutes);
+
+// S2 Requests, FAQ & Notifications
+app.use('/api/v1', requestsRoutes);
+// S3 mounts its router here the same way
+
+// Unknown URL -> 404 in the standard error format (must stay after all routers)
+app.use((req, res) => {
+  res.status(404).json({ error: { code: 'NOT_FOUND', message: `No route for ${req.method} ${req.path}`, details: [] } });
+});
+
+// Every error ends here (must be the very last app.use)
+app.use(errorHandler);
+
+// S1 Scheduling & Access
+app.use('/api/v1', authRoutes);
+app.use('/api/v1', schedulingRoutes);
+
+// S2 Requests, FAQ & Notifications
+app.use('/api/v1', requestsRoutes);
+// [S3] queue, check-in, meetings
+app.use('/api/v1', queueRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
