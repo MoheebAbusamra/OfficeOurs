@@ -1,0 +1,175 @@
+/* [S3] Page styles for the S3 pages (StudentQueue, InstructorQueue, History, CheckIn) */
+
+/* ---------- Queue status badges ---------- */
+.badge-waiting { background: var(--butter); }
+.badge-in_meeting { background: var(--blue); }
+.badge-done { background: var(--success-soft); color: var(--success); border-color: var(--success); }
+.badge-skipped { background: var(--burgundy-soft); color: var(--burgundy); border-color: var(--burgundy); }
+.badge-in { background: var(--success-soft); color: var(--success); border-color: var(--success); }
+
+.live-dot { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--ink-muted); }
+.live-dot::before {
+  content: ''; width: 9px; height: 9px; border-radius: 50%; background: var(--success);
+  box-shadow: 0 0 0 3px var(--success-soft); animation: q-pulse 1.8s ease-in-out infinite;
+}
+@keyframes q-pulse { 50% { opacity: 0.35; } }
+
+/* Shared info line: icon + text */
+.q-meta { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; color: var(--ink-muted); font-size: 0.95rem; }
+.q-meta span { display: inline-flex; align-items: center; gap: 0.35rem; }
+
+/* ---------- StudentQueue ---------- */
+.q-hero {
+  display: grid; grid-template-columns: minmax(220px, 0.8fr) 1.2fr; gap: 1.5rem; align-items: center;
+  padding: 2rem; background: var(--butter-soft);
+  border: var(--line); border-radius: var(--wobble); box-shadow: var(--shadow-lg);
+}
+.q-hero.is-turn { background: var(--blue-soft); }
+.q-hero.is-over { background: var(--white); }
+.q-count {
+  display: grid; place-items: center; text-align: center; aspect-ratio: 1; max-width: 240px; width: 100%; justify-self: center;
+  background: var(--white); border: var(--line); border-radius: 50% 46% 52% 48% / 48% 52% 46% 50%;
+  box-shadow: var(--shadow); transform: rotate(-3deg);
+}
+.q-count strong { display: block; font-size: clamp(4rem, 12vw, 6.5rem); line-height: 0.9; color: var(--burgundy); }
+.q-count .hand { font-size: 1.15rem; }
+.q-hero h2 { font-size: clamp(1.6rem, 4vw, 2.3rem); line-height: 1.15; }
+.q-hero-body { display: grid; gap: 0.9rem; justify-items: start; }
+
+/* Anonymous line: one dot per student ahead, then "you" */
+.q-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; }
+.q-line-dot {
+  width: 30px; height: 30px; border-radius: 50%; border: var(--line); background: var(--white);
+}
+.q-line-dot.is-current { background: var(--blue); }
+.q-line-you {
+  padding: 0.2rem 0.75rem; border-radius: 999px; font-family: var(--font-hand); font-weight: 700;
+  background: var(--burgundy); color: var(--butter); border: var(--line);
+}
+.q-line-more { font-family: var(--font-hand); color: var(--ink-muted); }
+
+.q-grid { display: grid; gap: 1.25rem; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.q-card { display: grid; gap: 0.6rem; align-content: start; }
+.q-card h3 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.15rem; }
+.q-card dl { display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 1rem; margin: 0; }
+.q-card dt { color: var(--ink-muted); }
+.q-card dd { margin: 0; font-weight: 600; }
+
+/* ---------- InstructorQueue ---------- */
+.iq-bar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 1rem 1.25rem; background: var(--white);
+  border: var(--line); border-radius: var(--wobble-sm); box-shadow: 3px 3px 0 var(--ink);
+}
+.iq-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.iq-layout { display: grid; gap: 1.5rem; grid-template-columns: minmax(280px, 0.9fr) 1.1fr; align-items: start; }
+.iq-now {
+  display: grid; gap: 0.8rem; padding: 1.5rem; background: var(--blue-soft);
+  border: var(--line); border-radius: var(--wobble); box-shadow: var(--shadow-lg);
+}
+.iq-now h2 { font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem; }
+.iq-now-name { font-size: 1.8rem; line-height: 1.15; }
+.iq-timer { font-family: var(--font-hand); font-size: 1.4rem; color: var(--burgundy); }
+.iq-empty { display: grid; gap: 0.4rem; text-align: center; padding: 1.5rem 1rem; border: 2px dashed rgba(89, 10, 28, 0.3); border-radius: var(--wobble-sm); }
+.iq-empty .hand { font-size: 1.3rem; color: var(--burgundy); }
+
+.iq-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+.iq-row {
+  display: grid; grid-template-columns: 52px 1fr auto; gap: 0.9rem; align-items: center;
+  padding: 0.85rem 1rem; background: var(--white);
+  border: var(--line); border-radius: var(--wobble-sm); box-shadow: 3px 3px 0 var(--ink);
+}
+.iq-row.is-finished { background: var(--paper); box-shadow: none; opacity: 0.85; }
+.iq-pos {
+  display: grid; place-items: center; width: 46px; height: 46px; font-family: var(--font-hand); font-size: 1.35rem; font-weight: 700;
+  background: var(--butter); border: var(--line); border-radius: var(--wobble-sm); transform: rotate(-4deg);
+}
+.iq-who { display: grid; gap: 0.2rem; min-width: 0; }
+.iq-who strong { overflow-wrap: anywhere; }
+.iq-who .muted { font-size: 0.9rem; overflow-wrap: anywhere; }
+.iq-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.iq-skip { grid-column: 1 / -1; display: grid; gap: 0.5rem; padding-top: 0.6rem; border-top: 2px dashed rgba(89, 10, 28, 0.25); }
+.iq-skip-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.iq-section-title { display: flex; align-items: center; gap: 0.5rem; font-size: 1.3rem; }
+.iq-finished summary { cursor: pointer; font-weight: 700; padding: 0.7rem 0; } /* keeps the native arrow, about 44px tall */
+
+/* ---------- History ---------- */
+.h-filters {
+  display: grid; gap: 0.9rem; align-items: end;
+  grid-template-columns: 2fr 1.2fr 1fr 1fr auto;
+  padding: 1.1rem 1.25rem; background: var(--white);
+  border: var(--line); border-radius: var(--wobble-sm); box-shadow: 3px 3px 0 var(--ink);
+}
+.h-filter-actions { display: flex; gap: 0.4rem; }
+.h-list { display: grid; gap: 1rem; }
+.h-item { padding: 0; overflow: hidden; }
+.h-item-head {
+  display: grid; grid-template-columns: 84px 1fr auto; gap: 1rem; align-items: center; width: 100%;
+  padding: 0; text-align: left; background: none; border: 0; font: inherit; color: inherit; cursor: pointer;
+}
+.h-item-head:focus-visible { outline: 3px solid var(--blue); outline-offset: -3px; }
+.h-date {
+  display: grid; place-content: center; text-align: center; gap: 0.1rem; align-self: stretch; min-height: 96px;
+  background: var(--burgundy); color: var(--butter); border-right: 2px dashed var(--butter);
+  font-family: var(--font-hand); font-size: 1rem;
+}
+.h-date strong { font-family: var(--font-ui); font-size: 2rem; line-height: 1; }
+.h-item-main { display: grid; gap: 0.3rem; padding: 0.9rem 0; min-width: 0; }
+.h-item-title { font-size: 1.15rem; overflow-wrap: anywhere; }
+.h-item-chevron { display: grid; place-items: center; margin-right: 1rem; transition: transform 0.2s var(--ease); }
+.h-item.is-open .h-item-chevron { transform: rotate(180deg); }
+.h-notes { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; padding: 1.1rem 1.25rem 1.25rem; border-top: 2px dashed rgba(89, 10, 28, 0.25); }
+.h-note { display: grid; gap: 0.45rem; align-content: start; }
+.h-note-read {
+  padding: 0.75rem 0.9rem; min-height: 96px; white-space: pre-wrap; overflow-wrap: anywhere;
+  background: var(--butter-soft); border: 1.5px dashed var(--ink); border-radius: var(--wobble-sm);
+}
+.h-note-read.is-empty { color: var(--ink-muted); font-style: italic; }
+.h-note-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.h-pager { display: flex; align-items: center; justify-content: center; gap: 1rem; }
+
+/* ---------- CheckIn (public page, no navbar) ---------- */
+/* overflow: the torn stub stays in the layout (hidden, shifted right and fallen down), so it would stretch the page.
+   The 8px padding / -8px margin keeps card shadows inside the clipped area. */
+.ci-page { display: grid; justify-items: center; gap: 1.5rem; overflow: clip; padding: 0 8px 8px; margin: 0 -8px; }
+.ci-brand { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 800; font-size: 1.2rem; color: var(--ink); text-decoration: none; }
+.ci-stage { width: 100%; max-width: 520px; display: grid; justify-items: center; padding: 1.5rem 0.5rem; }
+/* Torn = checked in: keep the stub hidden even on the first frame after a remount (e.g. phone rotation) */
+.ci-stage .tear-ticket[data-used] .tear-ticket__piece--stub { visibility: hidden; }
+.ci-ticket { display: grid; gap: 0.35rem; padding: 1.1rem 1.25rem; height: 100%; align-content: center; }
+.ci-ticket .hand { font-size: 1.05rem; color: var(--burgundy); }
+.ci-ticket strong { font-size: 1.35rem; line-height: 1.15; }
+.ci-ticket small { display: flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; }
+.ci-stub { display: grid; place-items: center; gap: 0.2rem; text-align: center; height: 100%; font-family: var(--font-hand); }
+.ci-stub b { font-size: 1.3rem; line-height: 1.1; }
+.ci-stub span { font-size: 2rem; font-family: var(--font-ui); font-weight: 800; }
+/* Phones: the ticket fills the width and is taller, so the text can be bigger */
+.ci-ticket.is-phone { gap: 0.4rem; padding: 1rem; }
+.ci-ticket.is-phone .hand { font-size: 1.15rem; }
+.ci-ticket.is-phone strong { font-size: 1.35rem; margin-bottom: 0.15rem; }
+.ci-ticket.is-phone small { font-size: 1rem; }
+@media (max-width: 559px) { .ci-stage { padding-inline: 0; } }
+.ci-done { display: grid; gap: 0.4rem; text-align: center; justify-items: center; }
+.ci-done .hand { font-size: 1.8rem; color: var(--success); }
+.ci-info { width: 100%; max-width: 520px; }
+.ci-lock { display: grid; grid-template-columns: auto 1fr; gap: 0.9rem; align-items: start; }
+.ci-lock svg { color: var(--burgundy); margin-top: 0.2rem; }
+.ci-lock .hand { display: block; font-size: 1.5rem; color: var(--burgundy); }
+.ci-lock p { margin: 0.25rem 0 0; }
+
+@media (max-width: 960px) {
+  .q-hero, .iq-layout { grid-template-columns: 1fr; }
+  .h-filters { grid-template-columns: 1fr 1fr; }
+  .h-filters .h-search { grid-column: 1 / -1; }
+  .h-notes { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .q-hero { padding: 1.25rem; }
+  .iq-row { grid-template-columns: 46px 1fr; }
+  .iq-row > .iq-row-actions { grid-column: 1 / -1; }
+  .h-filters { grid-template-columns: 1fr; }
+  .h-item-head { grid-template-columns: 70px 1fr auto; gap: 0.75rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-dot::before { animation: none; }
+}

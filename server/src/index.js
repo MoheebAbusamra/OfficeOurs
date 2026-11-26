@@ -2,14 +2,16 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { errorHandler } from './shared/errors.js';
+import { errorHandler, notFoundHandler } from './shared/errors.js';
+import queueRoutes from './services/queue/routes.js';
+import { startQueueConsumer } from './services/queue/consumer.js';
 import authRoutes from './services/auth/routes.js';
 import schedulingRoutes from './services/scheduling/routes.js';
 import requestsRoutes from './services/requests/routes.js';
 
-const app = express();
+export const app = express();
 app.use(cors({ origin: process.env.CLIENT_URL }));
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 
 app.get('/api/v1/health', (req, res) => res.json({ data: { status: 'ok' } }));
 
@@ -19,15 +21,16 @@ app.use('/api/v1', schedulingRoutes);
 
 // S2 Requests, FAQ & Notifications
 app.use('/api/v1', requestsRoutes);
-// S3 mounts its router here the same way
 
-// Unknown URL -> 404 in the standard error format (must stay after all routers)
-app.use((req, res) => {
-  res.status(404).json({ error: { code: 'NOT_FOUND', message: `No route for ${req.method} ${req.path}`, details: [] } });
-});
+// [S3] queue, check-in, meetings
+app.use('/api/v1', queueRoutes);
 
-// Every error ends here (must be the very last app.use)
+app.use(notFoundHandler);
 app.use(errorHandler);
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`Server running on http://localhost:${port}`));
+// Tests import { app } without starting the server or the SQS consumer
+if (process.env.NODE_ENV !== 'test') {
+  const port = process.env.PORT || 3000;
+  app.listen(port, () => console.log(`Server running on http://localhost:${port}`));
+  startQueueConsumer();
+}
