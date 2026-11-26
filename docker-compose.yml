@@ -1,0 +1,17 @@
+# [S3] Floci (free AWS emulator): every AWS service on http://localhost:4566. Start with: docker compose up -d
+# Then create the resources with: npm run floci:setup --prefix server
+name: officeours
+
+services:
+  floci:
+    image: floci/floci:latest
+    container_name: officeours-floci
+    user: root # needed to reach the Docker socket that runs the Lambda containers
+    ports:
+      - "4566:4566"
+    environment:
+      - FLOCI_HOSTNAME=floci # URLs Floci returns (e.g. SQS queue URLs) resolve inside the Docker network
+      - FLOCI_STORAGE_MODE=hybrid # keep buckets, queues and functions after a restart
+      - FLOCI_SERVICES_LAMBDA_DOCKER_NETWORK=officeours_default # Lambda containers can reach http://floci:4566
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
