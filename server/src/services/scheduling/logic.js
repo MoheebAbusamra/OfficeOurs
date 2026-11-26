@@ -2,6 +2,7 @@
 import { AppError } from '../../shared/errors.js';
 import * as db from './db.js';
 import { fetchEgyptHolidays } from './calendarific.js';
+import { findHolidaysInDynamo, saveHolidaysInDynamo } from './dynamo.js';
  
 // GET /modules: a student gets their group's modules, an instructor the modules they teach
 export async function listModules(user) {
@@ -412,26 +413,51 @@ export async function deleteSlot(user, id) {
   await db.deleteSlot(id);
 }
  
-// GET /holidays?year=2026: from the database cache, or from Calendarific the first time
+// GET /holidays?year=2026
+// Order: 1. DynamoDB on Floci (only when Floci is on)  2. Supabase cache  3. Calendarific (the first time)
 export async function getHolidays(year) {
-  // 1. Already cached? Then no API call is needed
-  const cached = await db.findHolidaysOfYear(year);
-  if (cached.length > 0) {
-    const holidays = [];
-    for (const row of cached) {
-      holidays.push({ date: row.holiday_date, name: row.name });
+  // Floci is "on" when AWS_ENDPOINT_URL is set in server/.env. Without it, steps 1 and 4 are skipped.
+  const flociIsOn = Boolean(process.env.AWS_ENDPOINT_URL);
+ 
+  // 1. Already in DynamoDB? (the Lambda refreshes it every day)
+  //    If Floci is down we only log it and carry on with Supabase, so the app keeps working.
+  if (flociIsOn) {
+    try {
+      const fromDynamo = await findHolidaysInDynamo(year);
+      if (fromDynamo.length > 0) {
+        console.log(`[S1] holidays ${year}: from DynamoDB`);
+        return fromDynamo;
+      }
+    } catch (err) {
+      console.error(`[S1] DynamoDB not reachable, using Supabase: ${err.message}`);
     }
-    return holidays;
   }
  
-  // 2. Not cached yet: ask Calendarific (this can throw 502), then save the result
-  const holidays = await fetchEgyptHolidays(year);
-  if (holidays.length > 0) {
+  // 2. Already in the Supabase cache?
+  let holidays = [];
+  const cached = await db.findHolidaysOfYear(year);
+  for (const row of cached) {
+    holidays.push({ date: row.holiday_date, name: row.name });
+  }
+ 
+  // 3. Not cached yet: ask Calendarific (this can throw 502), then save the result in Supabase
+  if (holidays.length === 0) {
+    holidays = await fetchEgyptHolidays(year);
     const rows = [];
     for (const h of holidays) {
       rows.push({ holiday_date: h.date, name: h.name, year });
     }
-    await db.saveHolidays(rows);
+    if (rows.length > 0) await db.saveHolidays(rows);
+  }
+ 
+  // 4. Copy them into DynamoDB too, so next time step 1 finds them
+  if (flociIsOn && holidays.length > 0) {
+    try {
+      await saveHolidaysInDynamo(year, holidays);
+      console.log(`[S1] holidays ${year}: saved in DynamoDB`);
+    } catch (err) {
+      console.error(`[S1] could not save holidays in DynamoDB: ${err.message}`);
+    }
   }
   return holidays;
 }
