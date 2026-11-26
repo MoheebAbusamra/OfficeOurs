@@ -21,22 +21,7 @@ app.use('/api/v1', schedulingRoutes);
 
 // S2 Requests, FAQ & Notifications
 app.use('/api/v1', requestsRoutes);
-// S3 mounts its router here the same way
 
-// Unknown URL -> 404 in the standard error format (must stay after all routers)
-app.use((req, res) => {
-  res.status(404).json({ error: { code: 'NOT_FOUND', message: `No route for ${req.method} ${req.path}`, details: [] } });
-});
-
-// Every error ends here (must be the very last app.use)
-app.use(errorHandler);
-
-// S1 Scheduling & Access
-app.use('/api/v1', authRoutes);
-app.use('/api/v1', schedulingRoutes);
-
-// S2 Requests, FAQ & Notifications
-app.use('/api/v1', requestsRoutes);
 // [S3] queue, check-in, meetings
 app.use('/api/v1', queueRoutes);
 
