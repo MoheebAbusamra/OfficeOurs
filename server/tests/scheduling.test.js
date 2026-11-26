@@ -9,7 +9,7 @@ import { jest } from '@jest/globals';
 // Real database calls can take a few seconds, so allow 20 s per test instead of Jest's default 5 s
 jest.setTimeout(20000);
  
-const API = 'http://localhost:3000/api/v1';
+import { API, stopBackend } from './backend.js';
 const PASSWORD = process.env.TEST_PASSWORD;
  
 // Tokens for the 3 test accounts, filled in beforeAll
@@ -39,6 +39,7 @@ beforeAll(async () => {
 afterAll(async () => {
   // Clean up if a test failed before the delete test ran
   if (slotId) await request(API).delete(`/slots/${slotId}`).set('Authorization', sara);
+  stopBackend();
 });
  
 describe('Auth (register, login, me, logout)', () => {

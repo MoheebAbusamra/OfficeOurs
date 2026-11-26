@@ -13,7 +13,7 @@ import { jest } from '@jest/globals';
 // Real database calls (and Gemini) can take a few seconds
 jest.setTimeout(30000);
 
-const API = 'http://localhost:3000/api/v1';
+import { API, stopBackend } from './backend.js';
 const PASSWORD = process.env.TEST_PASSWORD;
 // The student who submits the request; their email gets the real QR ticket when it is confirmed
 const STUDENT_ID = process.env.TEST_STUDENT_ID || '241339';
@@ -64,6 +64,7 @@ afterAll(async () => {
       .send({ status: 'cancelled', reason: 'Jest cleanup' });
   }
   if (faqId) await request(API).delete(`/faqs/${faqId}`).set('Authorization', sara);
+  stopBackend();
 });
 
 // ======================================================================= FAQ
