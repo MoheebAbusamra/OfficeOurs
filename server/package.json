@@ -8,7 +8,9 @@
     "start": "node src/index.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "floci:setup": "node scripts/floci-setup.mjs",
-    "lambda:package": "node scripts/package-lambda.mjs"
+    "lambda:package": "node scripts/package-lambda.mjs",
+    "deploy:web": "node scripts/floci-web.mjs",
+    "deploy:floci": "node scripts/deploy-floci.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-apigatewayv2": "^3.1178.0",

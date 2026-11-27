@@ -34,6 +34,11 @@ const lambda = new LambdaClient(flociConfig);
 const apigateway = new ApiGatewayV2Client(flociConfig);
 const step = (label, value = '') => console.log(`  ok  ${label}${value ? `: ${value}` : ''}`);
 
+// The frontend on Floci: built files in an S3 bucket, opened in the browser through Floci's S3 address
+export const WEB_BUCKET = 'officeours-web';
+export const WEB_URL = `${(process.env.AWS_ENDPOINT_URL || 'http://localhost:4566').replace(/\/+$/, '')}/${WEB_BUCKET}/index.html`;
+export const WEB_ORIGIN = new URL(WEB_URL).origin; // what the browser sends as "Origin" (CORS)
+
 // Settings every service Lambda needs. Each service adds its own on top.
 export function baseLambdaEnv() {
   return {
@@ -42,8 +47,8 @@ export function baseLambdaEnv() {
     // Inside Docker, Floci is reached by its service name "floci", not "localhost"
     AWS_ENDPOINT_URL: process.env.LAMBDA_AWS_ENDPOINT_URL || 'http://floci:4566',
     APP_TIMEZONE: process.env.APP_TIMEZONE || 'Africa/Cairo',
-    // Frontends allowed to call the API (CORS), comma-separated
-    CLIENT_URL: process.env.LAMBDA_CLIENT_URL || process.env.CLIENT_URL || 'http://localhost:5173',
+    // Frontends allowed to call the API (CORS), comma-separated: local dev + the website on Floci
+    CLIENT_URL: [process.env.LAMBDA_CLIENT_URL || process.env.CLIENT_URL || 'http://localhost:5173', WEB_ORIGIN].join(','),
   };
 }
 
