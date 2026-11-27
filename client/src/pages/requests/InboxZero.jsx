@@ -1,4 +1,4 @@
-// [S2] "Inbox zero" illustration: a hand-drawn mug with rising steam on a saucer (decorative)
+// "Inbox zero" illustration: a hand-drawn mug with rising steam on a saucer (decorative)
 export default function InboxZero({ size = 150 }) {
   return (
     <svg className="inbox-zero" viewBox="0 0 160 140" width={size} height={size * 140 / 160} aria-hidden="true">

@@ -1,4 +1,4 @@
-// [S2] Reusable pop-up sheet for S2 pages (FAQ form, delete confirm, later reject/cancel reasons): native <dialog>, Escape closes it
+// Reusable pop-up sheet for the requests pages (FAQ form, delete confirm, later reject/cancel reasons): native <dialog>, Escape closes it
 import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 

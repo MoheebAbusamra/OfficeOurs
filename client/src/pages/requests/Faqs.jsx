@@ -1,4 +1,4 @@
-// [S2] Faqs: Instructor manages their FAQ list used by the AI check
+// Faqs: Instructor manages their FAQ list used by the AI check
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCheck, Pencil, Plus, RefreshCw, Search, Sparkles, Trash2, Users, X } from 'lucide-react';
 import { createFaq, deleteFaq, getFaqs, suggestFaqs, updateFaq } from '@/api/requests';

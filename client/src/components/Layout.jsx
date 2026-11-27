@@ -1,6 +1,7 @@
-// [S2] Page frame for logged-in pages: navbar on top, the current page in the middle, footer with credits
+// Page frame for logged-in pages: navbar on top, the current page in the middle, footer
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
+import Footer from './Footer';
 
 export default function Layout() {
   return (
@@ -9,9 +10,7 @@ export default function Layout() {
       <main className="main" id="main">
         <Outlet />
       </main>
-      <footer className="footer">
-        OfficeOurs, a cloud computing project. Holidays by <a href="https://calendarific.com" target="_blank" rel="noreferrer">Calendarific</a>.
-      </footer>
+      <Footer />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-// [S1] Calls to S1 endpoints: modules, instructors, slots, holidays, dashboard
+// Calls to the scheduling endpoints: modules, instructors, slots, holidays, dashboard
 import { http } from './http';
 
 // Lookups for filters

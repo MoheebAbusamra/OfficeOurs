@@ -1,4 +1,4 @@
-// [S2] Checks for new notifications every few seconds and shows the unread count
+// Checks for new notifications every few seconds and shows the unread count
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';

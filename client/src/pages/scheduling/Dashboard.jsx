@@ -1,4 +1,4 @@
-// [S1] Dashboard: Instructor home: requests count, priorities, next meeting, stats (#10)
+// Dashboard: Instructor home: requests count, priorities, next meeting, stats (#10)
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -38,7 +38,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // GET /dashboard: one call, the API combines S1 slots, S2 requests and S3 meetings
+  // GET /dashboard: one call, the API combines slots, requests and meetings
   const load = useCallback(() => {
     setLoading(true);
     setError('');
@@ -97,7 +97,7 @@ export default function Dashboard() {
                 )}
               </section>
 
-              {/* Requests waiting for a decision (S2 data) */}
+              {/* Requests waiting for a decision */}
               <section className="dash-pending" aria-labelledby="pending-title">
                 <h2 id="pending-title" className="dash-label"><Inbox size={18} aria-hidden="true" /> Waiting for you</h2>
                 <strong className="dash-big">{data.pendingRequests}</strong>

@@ -5,12 +5,12 @@ import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
   plugins: [react()],
-  // [Shared, added by S2] The Floci build sets VITE_BASE=./ so the built files load from the S3 bucket's folder
+  // The Floci build sets VITE_BASE=./ so the built files load from the S3 bucket's folder
   // (http://localhost:4566/officeours-web/...). Local dev and normal builds keep "/".
   base: process.env.VITE_BASE || '/',
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   server: { port: 5173 },
-  // [S3] Vite 8 dev can pre-bundle libraries in separate passes, each with its own copy of React, which crashes
+  // Vite 8 dev can pre-bundle libraries in separate passes, each with its own copy of React, which crashes
   // every page with "Invalid hook call". Listing them here bundles them together in one pass with a single React.
   optimizeDeps: {
     include: [

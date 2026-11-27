@@ -1,4 +1,4 @@
-// [S1] BrowseSlots: Student searches/filters slots; non-clashing first, holidays excluded (#1)
+// BrowseSlots: Student searches/filters slots; non-clashing first, holidays excluded (#1)
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarX2, Clock, MapPin, Search, X } from 'lucide-react';
@@ -51,7 +51,7 @@ const badgeImage = name => {
   return canvas.toDataURL('image/png');
 };
 
-// One slot as a "ticket": date block on the left, details on the right, link to S2's NewRequest page
+// One slot as a "ticket": date block on the left, details on the right, link to the NewRequest page
 function SlotCard({ slot }) {
   const { day, num, month } = dateParts(slot.slotDate);
   const placesLeft = Math.max(0, slot.capacity - slot.confirmedCount);

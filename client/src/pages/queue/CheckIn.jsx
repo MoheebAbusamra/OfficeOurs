@@ -1,4 +1,4 @@
-// [S3] CheckIn: Page the QR code opens; simulates door check-in (#12)
+// CheckIn: Page the QR code opens; simulates door check-in (#12)
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { CalendarDays, CheckCircle2, Clock, Lock, MapPin, NotebookPen, UserRound } from 'lucide-react';

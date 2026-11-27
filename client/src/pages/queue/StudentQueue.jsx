@@ -1,4 +1,4 @@
-// [S3] StudentQueue: Shows how many students are ahead (no names) (#7)
+// StudentQueue: Shows how many students are ahead (no names) (#7)
 import { Link, useParams } from 'react-router-dom';
 import { CalendarDays, CheckCircle2, Clock, DoorOpen, History, MapPin, QrCode, RefreshCw, UserRound } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';

@@ -1,4 +1,4 @@
-// [S1] Calls to the backend auth endpoints: register (student ID), login, logout, current user (#A)
+// Calls to the backend auth endpoints: register (student ID), login, logout, current user (#A)
 import { http } from './http';
 
 export const register = (universityId, password) => http.post('/auth/register', { universityId, password });

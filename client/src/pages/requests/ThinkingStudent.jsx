@@ -1,4 +1,4 @@
-// [S2] Hand-drawn student thinking, hand on chin, question marks floating around the head (decorative, same style as the password student)
+// Hand-drawn student thinking, hand on chin, question marks floating around the head (decorative, same style as the password student)
 export default function ThinkingStudent({ size = 132 }) {
   return (
     <svg className="thinking" viewBox="0 0 150 130" width={size} height={size * 130 / 150} aria-hidden="true">

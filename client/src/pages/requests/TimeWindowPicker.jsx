@@ -1,4 +1,4 @@
-// [S2] Pick a time window inside a slot: start chips (5 min steps) + length + a mini timeline of the slot (New request + Edit)
+// Pick a time window inside a slot: start chips (5 min steps) + length + a mini timeline of the slot (New request + Edit)
 import { DURATIONS, toMin, toTime } from './time';
 
 export default function TimeWindowPicker({ slot, start, duration, onStart, onDuration, error }) {

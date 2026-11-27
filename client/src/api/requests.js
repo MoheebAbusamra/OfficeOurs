@@ -1,4 +1,4 @@
-// [S2] Calls to S2 endpoints: requests, status, inbox, FAQs, AI FAQ check, notifications
+// Calls to the requests endpoints: requests, status, inbox, FAQs, AI FAQ check, notifications
 import { http } from './http';
 
 // AI check before submitting (#13)

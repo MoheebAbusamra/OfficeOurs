@@ -1,4 +1,4 @@
-// [S2] Shared top navigation; menu changes by role (student/instructor)
+// Shared top navigation; menu changes by role (student/instructor)
 import { useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import {
@@ -8,7 +8,7 @@ import {
 import { homeFor, useAuth } from '@/context/AuthContext';
 import NotificationBell from './NotificationBell';
 
-const LINKS = {
+export const LINKS = {
   student: [
     { to: '/student/slots', label: 'Book a slot', icon: CalendarDays, also: ['/student/requests/new'] }, // booking flow counts as "Book a slot"
     { to: '/student/requests', label: 'My requests', icon: ClipboardList, end: true },
