@@ -4,6 +4,8 @@
 import { AppError } from '../../shared/errors.js';
 
 const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
+// The model in use (also written into the AI log)
+export const geminiModel = () => process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
 const TIMEOUT_MS = 20000; // give up after 20 s, the student can still continue without AI
 
 // One error for every AI problem (no key, timeout, Google error, bad JSON). The frontend lets the user continue.
@@ -15,7 +17,7 @@ function aiUnavailable() {
 // responseSchema makes Gemini answer in exactly that JSON shape (structured output).
 async function askGemini(systemText, userText, responseSchema) {
   const key = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+  const model = geminiModel();
   if (!key || key === 'placeholder') {
     console.error('[gemini] GEMINI_API_KEY is missing in server/.env');
     throw aiUnavailable();
