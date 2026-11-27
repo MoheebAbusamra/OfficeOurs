@@ -1,9 +1,9 @@
-// [S2] AI log on S3: one JSON file per Gemini call (what was asked, what the AI answered, how long it took)
+// AI log on S3: one JSON file per Gemini call (what was asked, what the AI answered, how long it took)
 // Answers "why did the AI say that?" later, and shows the AI's hit rate. Bucket: AI_LOG_BUCKET on Floci.
 // Skipped when Floci is not configured, and a failed write never breaks the request.
 import { randomUUID } from 'node:crypto';
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { awsConfig, awsEnabled } from '../queue/aws.js'; // the same Floci settings S3's code uses
+import { awsConfig, awsEnabled } from '../queue/aws.js'; // the same Floci settings the queue service uses
 
 let client;
 const s3 = () => (client ||= new S3Client(awsConfig()));

@@ -1,5 +1,5 @@
-// [S2] Tests for S2 endpoints: normal + invalid cases (FAQ, requests, notifications, AI)
-// Like S1's tests, they call the running backend (npm run dev) on the real Supabase database.
+// Tests for the requests endpoints: normal + invalid cases (FAQ, requests, notifications, AI)
+// Like the scheduling tests, they call the running backend (npm run dev) on the real Supabase database.
 // Run from the server folder: npm test -- tests/requests.test.js
 // Needs TEST_PASSWORD in server/.env (the password of the test accounts 241339, 248690, I-1001 and I-1002).
 // Optional: TEST_STUDENT_ID + TEST_STUDENT_PASSWORD to submit the request as another student (who gets the QR email).
@@ -48,7 +48,7 @@ async function login(universityId, password = PASSWORD) {
 beforeAll(async () => {
   [judy, moheeb, sara, omar] = await Promise.all([login(STUDENT_ID, STUDENT_PASSWORD), login('248690'), login('I-1001'), login('I-1002')]);
 
-  // Pick one of Dr Sara's future slots that Judy can book: not full, not today, no active request of hers yet
+  // Pick one of Dr Sara's future slots that student 241339 can book: not full, not today, no active request of hers yet
   const today = new Date().toLocaleDateString('en-CA');
   const slots = await request(API).get('/slots?instructorId=I-1001&limit=100').set('Authorization', judy);
   const mine = await request(API).get('/requests?limit=100').set('Authorization', judy);

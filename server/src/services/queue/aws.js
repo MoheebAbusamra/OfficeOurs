@@ -1,4 +1,4 @@
-// [S3] Shared AWS SDK settings for S3's clients (SQS, S3, SES, Lambda) pointing at Floci (http://localhost:4566)
+// Shared AWS SDK settings for the queue service's clients (SQS, S3, SES, Lambda) pointing at Floci (http://localhost:4566)
 // Without AWS_ENDPOINT_URL the cloud steps are skipped and the app still works (local dev without Docker).
 export const awsEnabled = () => Boolean(process.env.AWS_ENDPOINT_URL);
 

@@ -1,4 +1,4 @@
-// [S3] Bundles the S3 queue worker (src/services/queue/lambda.js + its libraries) into one file and zips it for Lambda
+// Bundles the queue worker (src/services/queue/lambda.js + its libraries) into one file and zips it for Lambda
 import { build } from 'esbuild';
 import AdmZip from 'adm-zip';
 import { mkdirSync, readFileSync } from 'node:fs';

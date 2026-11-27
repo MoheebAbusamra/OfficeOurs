@@ -1,4 +1,4 @@
-// [Shared] AppError class + global error handler that returns the standard { error: { code, message, details } } format
+// AppError class + global error handler that returns the standard { error: { code, message, details } } format
 
 // Throw this anywhere: throw new AppError(409, 'QUEUE_EMPTY', 'Nobody is waiting in this queue')
 export class AppError extends Error {

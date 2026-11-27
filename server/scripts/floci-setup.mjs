@@ -1,5 +1,5 @@
-// [S3] Creates the S3 service's AWS resources on Floci (safe to run again): S3 bucket, SQS queue + dead-letter queue,
-// SNS topic subscription (S2 publishes, S3 receives), SES sender identity and the queue-worker Lambda.
+// Creates the queue service's AWS resources on Floci (safe to run again): S3 bucket, SQS queue + dead-letter queue,
+// SNS topic subscription (the requests service publishes, the queue service receives), SES sender identity and the queue-worker Lambda.
 // Usage: docker compose up -d   then   npm run floci:setup --prefix server
 import 'dotenv/config';
 import { readFileSync } from 'node:fs';
@@ -12,11 +12,11 @@ import {
   waitUntilFunctionUpdated,
 } from '@aws-sdk/client-lambda';
 import { packageLambda } from './package-lambda.mjs';
-// [S1] Judy's setup for S1's AWS services. Its code stays in S1's own folder, it is only called below.
+// The scheduling service's setup. Its code stays in its own folder, it is only called below.
 import { setupS1 } from '../src/services/scheduling/floci-setup.js';
-// [S2] S2's setup (SNS topic, AI-log bucket, IAM role, Lambda, API Gateway routes), also in S2's own folder
+// The requests service's setup (SNS topic, AI-log bucket, IAM role, Lambda, API Gateway routes), also in its own folder
 import { setupS2 } from '../src/services/requests/floci-setup.js';
-// [Shared, added by S2] S1's and S3's APIs as Lambdas behind the same API Gateway "officeours-api"
+// The scheduling and queue APIs as Lambdas behind the same API Gateway "officeours-api"
 import { setupServiceApis } from './floci-api.mjs';
 
 process.env.AWS_ENDPOINT_URL ||= 'http://localhost:4566';
@@ -29,7 +29,7 @@ const config = {
 
 const BUCKET = process.env.S3_BUCKET || 'officeours-qr';
 const QUEUE = 'officeours-request-confirmed';
-const TOPIC = 'officeours-request-events'; // S2 publishes RequestConfirmed here
+const TOPIC = 'officeours-request-events'; // the requests service publishes RequestConfirmed here
 const LAMBDA = process.env.QUEUE_LAMBDA_NAME || 'officeours-queue-worker';
 const RUNTIME = 'nodejs22.x'; // supabase-js needs the native WebSocket of Node 22+
 const SENDER = process.env.SES_SENDER_EMAIL && process.env.SES_SENDER_EMAIL !== 'placeholder@example.com'
@@ -136,12 +136,12 @@ try {
   const topicArn = await topic(queueArn, queueUrl);
   await sesIdentity();
   await worker();
-    // [S1] Also create S1's resources (DynamoDB, IAM, Lambda, EventBridge, API Gateway) in the same Floci,
+    // Also create the scheduling service's resources (DynamoDB, IAM, Lambda, EventBridge, API Gateway) in the same Floci,
   // so the whole group needs only this one command (PROJECT_CONTEXT section 10: "one setup script").
   await setupS1();
-  // [S2] S2's resources: its Lambda runs the whole S2 service behind the app's API Gateway
+  // The requests service's resources: its Lambda runs the whole service behind the app's API Gateway
   const s2 = await setupS2();
-  // [Shared] the rest of the app's API (S1 and S3), so every /api/v1 route runs on Floci
+  // the rest of the app's API (scheduling and queue), so every /api/v1 route runs on Floci
   await setupServiceApis();
   console.log('\nDone. Put these in server/.env:');
   console.log(`  AWS_ENDPOINT_URL=${config.endpoint}`);

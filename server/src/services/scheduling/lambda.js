@@ -1,4 +1,4 @@
-// [S1] AWS Lambda "officeours-holidays" (runs on Floci). Two jobs:
+// AWS Lambda "officeours-holidays" (runs on Floci). Two jobs:
 //   A. Called by API Gateway (GET /holidays?year=2026): returns the holidays, from DynamoDB or from Calendarific
 //   B. Called by the daily EventBridge schedule: downloads this year's and next year's holidays again and saves them
 // floci-setup.js packs this file (with the files it imports) into a zip and uploads it to Floci.

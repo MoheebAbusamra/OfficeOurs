@@ -1,5 +1,5 @@
-// [Shared, added by S2 for the Floci deployment] S1's and S3's APIs as Lambdas behind "officeours-api",
-// the same way S2 deploys its own in setupS2(). Together the 3 Lambdas serve every /api/v1 route of the app.
+// The scheduling and queue APIs as Lambdas behind "officeours-api",
+// the same way the requests service deploys its own in setupS2(). Together the 3 Lambdas serve every /api/v1 route of the app.
 // Called by scripts/floci-setup.mjs.
 import { fileURLToPath } from 'node:url';
 import { deployHttpLambda, baseLambdaEnv } from './floci-http-lambda.mjs';
@@ -9,7 +9,7 @@ const entry = (path) => fileURLToPath(new URL(`../src/services/${path}`, import.
 const paths = (...list) => list.flatMap((path) => [`ANY /api/v1/${path}`, `ANY /api/v1/${path}/{proxy+}`]);
 
 export async function setupServiceApis() {
-  // ---------------- S1 (Judy): login + scheduling ----------------
+  // ---------------- Scheduling API: login + scheduling ----------------
   console.log('Setting up the S1 API Lambda (login + scheduling)');
   const s1 = await deployHttpLambda({
     name: 'officeours-scheduling',
@@ -26,7 +26,7 @@ export async function setupServiceApis() {
     ],
   });
 
-  // ---------------- S3 (Ahmed): queue, check-in, meetings ----------------
+  // ---------------- Queue API: queue, check-in, meetings ----------------
   console.log('Setting up the S3 API Lambda (queue, check-in, meetings)');
   const bucket = process.env.S3_BUCKET || 'officeours-qr';
   const sender = process.env.SES_SENDER_EMAIL && process.env.SES_SENDER_EMAIL !== 'placeholder@example.com'

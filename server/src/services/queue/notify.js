@@ -1,5 +1,5 @@
-// [S3] Sends "your turn", "meeting done" and "skipped" notifications through S2's notifications table (polled by the bell)
-// When S2 exports a createNotification() helper, replace the insert below with a call to it.
+// Sends "your turn", "meeting done" and "skipped" notifications through the notifications table (polled by the bell)
+// The shared notify() helper (shared/notify.js) does the same insert.
 import { supabase } from '../../shared/supabase.js';
 
 // type must be one of the notification types allowed in schema.sql

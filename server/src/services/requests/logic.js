@@ -1,8 +1,8 @@
-// [S2] Business rules: status workflow pending -> confirmed/rejected/cancelled, edit only while unopened, emergency cancel
+// Business rules: status workflow pending -> confirmed/rejected/cancelled, edit only while unopened, emergency cancel
 import { AppError } from '../../shared/errors.js';
 import { notify } from '../../shared/notify.js';
 import { publish, EVENTS } from '../../shared/events.js';
-// S2 -> S1: Judy's scheduling rules (which modules a user has, one slot, which slots a student may book)
+// The scheduling service's rules (which modules a user has, one slot, which slots a student may book)
 import { listModules, getSlot, listSlots } from '../scheduling/logic.js';
 import * as db from './db.js';
 import * as gemini from './gemini.js';
@@ -113,7 +113,7 @@ const ALLOWED = {
 // Sorting by priority: high first
 const PRIORITY_RANK = { high: 0, normal: 1, low: 2 };
 
-// Today as "2026-11-25" and the time as "14:05", both in the server's local time (same as S1)
+// Today as "2026-11-25" and the time as "14:05", both in the server's local time (same as the scheduling service)
 function today() {
   return new Date().toLocaleDateString('en-CA');
 }
@@ -140,7 +140,7 @@ function queueEntryOf(row) {
   return entry || null;
 }
 
-// The slot inside a request, in the same shape as S1's Slot in openapi.yaml
+// The slot inside a request, in the same shape as the Slot schema in openapi.yaml
 function toSlotShape(slot, confirmedCount) {
   return {
     id: slot.id,
@@ -175,7 +175,7 @@ function toRequestResponse(row, user, confirmedCount) {
     cancelledBy: row.cancelled_by,
     // Only the student who owns it, only while pending and not yet opened by the instructor
     canEdit: row.student_id === user.universityId && row.status === 'pending' && !row.opened_at,
-    queueEntryId: queueEntryOf(row)?.id ?? null, // filled once S3 has queued the request
+    queueEntryId: queueEntryOf(row)?.id ?? null, // filled once the request is queued
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -277,7 +277,7 @@ export async function getRequest(user, id) {
 
 // POST /requests (students only, checked in routes.js)
 export async function createRequest(user, body) {
-  // 1. The slot (S2 -> S1: Judy's getSlot answers 404 when it does not exist)
+  // 1. The slot (the scheduling service's getSlot answers 404 when it does not exist)
   const slot = await getSlot(user, body.slotId);
 
   // 2. Still open: active, and not over yet
@@ -286,7 +286,7 @@ export async function createRequest(user, body) {
     throw new AppError(409, 'SLOT_NOT_ACTIVE', 'This slot is no longer open for requests');
   }
 
-  // 3. Open to this student (S2 -> S1: the same rules as the student's slot search,
+  // 3. Open to this student (the scheduling service's rules, the same as the student's slot search,
   //    i.e. one of their modules, not a weekend, not a holiday)
   const bookable = await listSlots(user, {
     instructorId: slot.instructor.universityId, from: slot.slotDate, to: slot.slotDate, limit: 100,
@@ -381,7 +381,7 @@ export async function changeStatus(user, id, body) {
     throw new AppError(409, 'INVALID_TRANSITION', `A ${row.status} request cannot be ${next}`);
   }
 
-  // 2. A meeting that already started cannot be cancelled (S3 sets the queue entry to in_meeting / done)
+  // 2. A meeting that already started cannot be cancelled (the queue service sets the queue entry to in_meeting / done)
   const entry = queueEntryOf(row);
   if (next === 'cancelled' && entry && (entry.status === 'in_meeting' || entry.status === 'done')) {
     throw new AppError(409, 'MEETING_STARTED', 'This meeting has already started, so it can no longer be cancelled');
@@ -409,7 +409,7 @@ export async function changeStatus(user, id, body) {
     throw new AppError(409, 'INVALID_TRANSITION', 'This request was just changed. Please refresh and try again');
   }
 
-  // 5. Tell S3 (queue + QR email) and the other side
+  // 5. Tell the queue service (queue + QR email) and the other side
   const slotTime = when(slot.slot_date, slot.start_time);
   const student = row.university_registry;
   const instructor = slot.university_registry;
@@ -442,7 +442,7 @@ export async function changeStatus(user, id, body) {
     }
   }
 
-  // 6. After a confirm, read again so the queue entry S3 just created is in the response
+  // 6. After a confirm, read again so the queue entry just created is in the response
   const fresh = next === 'confirmed' ? await db.findRequestById(id) : updated;
   return shapeRequest(user, fresh);
 }
@@ -506,7 +506,7 @@ const SUGGEST_LOOKBACK = 60;
 // POST /requests/faq-check: before submitting, does the instructor's FAQ already answer the question?
 // Returns the old fields (matched, faqId, faqQuestion, answer) plus the new ones (verdict, sources, ...)
 export async function checkFaq(user, body) {
-  // 1. The slot tells us whose FAQ to use (S2 -> S1, 404 if the slot does not exist)
+  // 1. The slot tells us whose FAQ to use (scheduling service, 404 if the slot does not exist)
   const slot = await getSlot(user, body.slotId);
 
   // 2. FAQs for the slot's module plus the general ones (all of them when the slot has no module)

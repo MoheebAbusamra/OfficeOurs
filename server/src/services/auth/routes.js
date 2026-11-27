@@ -1,4 +1,4 @@
-// [S1] Auth endpoints: POST /auth/register, POST /auth/login, POST /auth/logout, GET /auth/me
+// Auth endpoints: POST /auth/register, POST /auth/login, POST /auth/logout, GET /auth/me
 import { Router } from 'express';
 import { requireAuth } from '../../shared/auth.js';
 import { validateRegister, validateLogin } from './validation.js';

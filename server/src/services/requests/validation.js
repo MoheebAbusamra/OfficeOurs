@@ -1,4 +1,4 @@
-// [S2] Input rules per endpoint; bad input is rejected with 400 and a clear message
+// Input rules per endpoint; bad input is rejected with 400 and a clear message
 import { AppError } from '../../shared/errors.js';
 
 // A uuid looks like 3f2b8c1e-0a4d-4c9b-9f1e-2d7a6b5c4e3f

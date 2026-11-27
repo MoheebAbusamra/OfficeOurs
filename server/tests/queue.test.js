@@ -1,4 +1,4 @@
-// [S3] Tests for S3 endpoints: normal + invalid cases
+// Tests for the queue endpoints: normal + invalid cases
 // The database (db.js), login check and outside services are replaced by in-memory fakes,
 // so the real routes, validation and business rules in logic.js run without touching Supabase.
 import { jest } from '@jest/globals';

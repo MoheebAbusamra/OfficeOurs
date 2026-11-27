@@ -1,4 +1,4 @@
-// [S3] SQS consumer: long-polls the "request confirmed" queue on Floci and hands each message to the S3 Lambda
+// SQS consumer: long-polls the "request confirmed" queue on Floci and hands each message to the queue-worker Lambda
 // (or runs the same handler in-process when QUEUE_LAMBDA_NAME is empty). A message is deleted only after it succeeds.
 import { DeleteMessageCommand, ReceiveMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';

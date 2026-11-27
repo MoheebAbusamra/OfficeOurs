@@ -1,4 +1,4 @@
-// [S2] Google Gemini client: compares the student's question with the instructor's FAQ (#13)
+// Google Gemini client: compares the student's question with the instructor's FAQ (#13)
 // and drafts new FAQ entries from the questions students actually ask.
 // Uses the REST API with fetch, so no extra package is needed. Key and model come from server/.env.
 import { AppError } from '../../shared/errors.js';

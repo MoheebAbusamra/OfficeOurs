@@ -1,4 +1,4 @@
-// [Shared] One Supabase client (service role) used by every service's db.js
+// One Supabase client (service role) used by every service's db.js
 import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
 

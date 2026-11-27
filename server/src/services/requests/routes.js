@@ -1,4 +1,4 @@
-// [S2] Endpoints (method + URL) -> validation -> logic; mounted at /api/v1
+// Endpoints (method + URL) -> validation -> logic; mounted at /api/v1
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../../shared/auth.js';
 import {

@@ -1,5 +1,5 @@
-// [Shared, added by S2 for the Floci deployment] Deploys one service's Express API as a Lambda
-// behind the app's one API Gateway "officeours-api". Used by S2's setupS2() and by floci-api.mjs (S1, S3).
+// Deploys one service's Express API as a Lambda
+// behind the app's one API Gateway "officeours-api". Used by setupS2() and by floci-api.mjs.
 //
 // For each service it does, in order (all safe to run again):
 //   1. IAM role     what this Lambda may do (least privilege: only what the service needs)

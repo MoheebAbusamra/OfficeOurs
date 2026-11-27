@@ -1,4 +1,4 @@
-// [Shared, added by S2 for the Floci deployment] Puts the frontend on Floci:
+// Puts the frontend on Floci:
 //   1. find the app's API Gateway address
 //   2. build the React app against it (mocks off, # links, relative file paths)
 //   3. create the S3 web bucket, allow public reads of its files (bucket policy)
