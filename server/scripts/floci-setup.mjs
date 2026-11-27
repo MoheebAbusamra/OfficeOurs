@@ -14,6 +14,8 @@ import {
 import { packageLambda } from './package-lambda.mjs';
 // [S1] Judy's setup for S1's AWS services. Its code stays in S1's own folder, it is only called below.
 import { setupS1 } from '../src/services/scheduling/floci-setup.js';
+// [S2] S2's setup (SNS topic, AI-log bucket, IAM role, Lambda, API Gateway routes), also in S2's own folder
+import { setupS2 } from '../src/services/requests/floci-setup.js';
 
 process.env.AWS_ENDPOINT_URL ||= 'http://localhost:4566';
 const config = {
@@ -135,13 +137,17 @@ try {
     // [S1] Also create S1's resources (DynamoDB, IAM, Lambda, EventBridge, API Gateway) in the same Floci,
   // so the whole group needs only this one command (PROJECT_CONTEXT section 10: "one setup script").
   await setupS1();
+  // [S2] S2's resources: its Lambda runs the whole S2 service behind the app's API Gateway
+  const s2 = await setupS2();
   console.log('\nDone. Put these in server/.env:');
   console.log(`  AWS_ENDPOINT_URL=${config.endpoint}`);
   console.log(`  S3_BUCKET=${BUCKET}`);
   console.log(`  SQS_QUEUE_URL=${queueUrl.replace('://floci:', '://localhost:')}`);
   console.log(`  QUEUE_LAMBDA_NAME=${LAMBDA}`);
   console.log(`  SES_SENDER_EMAIL=${SENDER}`);
-  console.log(`  SNS_TOPIC_ARN=${topicArn}   (for S2: publish RequestConfirmed here)`);
+  console.log(`  SNS_TOPIC_ARN=${topicArn}`);
+  console.log(`  AI_LOG_BUCKET=${s2.bucket}`);
+  console.log(`\nS2 API on Floci: ${s2.apiUrl}`);
 } catch (err) {
   console.error(`\nFloci setup failed: ${err.message}`);
   console.error('Is Floci running? Start it with: docker compose up -d');

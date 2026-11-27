@@ -6,6 +6,7 @@ import { publish, EVENTS } from '../../shared/events.js';
 import { listModules, getSlot, listSlots } from '../scheduling/logic.js';
 import * as db from './db.js';
 import * as gemini from './gemini.js';
+import { logAiCall } from './ailog.js';
 
 // ------------------------------------------------------------------ FAQ (#13)
 
@@ -518,13 +519,31 @@ export async function checkFaq(user, body) {
   };
   if (faqs.length === 0) return noMatch; // nothing to compare with, no need to ask Gemini
 
-  // 3. Gemini reasons over the FAQ (throws 502 AI_UNAVAILABLE if it fails; the student can still continue)
-  const ai = await gemini.checkQuestionAgainstFaq(faqs, { title: body.title.trim(), description: body.description.trim() });
+  // 3. Gemini reasons over the FAQ (throws 502 AI_UNAVAILABLE if it fails; the student can still continue).
+  //    Every call, good or failed, is saved to the AI log on S3.
+  const question = { title: body.title.trim(), description: body.description.trim() };
+  const log = {
+    kind: 'faq-check', model: gemini.geminiModel(), userId: user.universityId,
+    slotId: slot.id, instructorId: slot.instructor.universityId, faqCount: faqs.length, question,
+  };
+  const started = Date.now();
+  let ai;
+  try {
+    ai = await gemini.checkQuestionAgainstFaq(faqs, question);
+  } catch (err) {
+    await logAiCall({ ...log, ok: false, ms: Date.now() - started, error: err.code || err.message });
+    throw err;
+  }
 
   const sources = ai.usedFaqIds.map((id) => {
     const faq = faqs.find((f) => f.id === id);
     return { faqId: faq.id, question: faq.question };
   });
+  await logAiCall({
+    ...log, ok: true, ms: Date.now() - started,
+    result: { verdict: ai.verdict, answer: ai.answer, sources: sources.map((s) => s.question), suggestedTitle: ai.suggestedTitle },
+  });
+
   return {
     matched: ai.verdict !== 'none',
     verdict: ai.verdict, // answered | partial | none
@@ -552,10 +571,19 @@ export async function suggestFaqs(user, body) {
 
   // 2. Gemini compares them with the current FAQ
   const faqs = await db.findFaqs({ instructorId: user.universityId });
-  const drafts = await gemini.suggestFaqEntries(
-    rows.map((row) => ({ id: row.id, title: row.title, description: row.description })),
-    faqs,
-  );
+  const log = { kind: 'faq-suggest', model: gemini.geminiModel(), userId: user.universityId, analyzed: rows.length, faqCount: faqs.length };
+  const started = Date.now();
+  let drafts;
+  try {
+    drafts = await gemini.suggestFaqEntries(
+      rows.map((row) => ({ id: row.id, title: row.title, description: row.description })),
+      faqs,
+    );
+  } catch (err) {
+    await logAiCall({ ...log, ok: false, ms: Date.now() - started, error: err.code || err.message });
+    throw err;
+  }
+  await logAiCall({ ...log, ok: true, ms: Date.now() - started, result: drafts.map((d) => ({ question: d.question, requests: d.requestIds.length })) });
 
   // 3. Add facts we compute ourselves (never taken from the model): how many requests and students, which module
   const byId = Object.fromEntries(rows.map((row) => [row.id, row]));
