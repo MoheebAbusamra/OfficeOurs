@@ -16,6 +16,8 @@ import { packageLambda } from './package-lambda.mjs';
 import { setupS1 } from '../src/services/scheduling/floci-setup.js';
 // [S2] S2's setup (SNS topic, AI-log bucket, IAM role, Lambda, API Gateway routes), also in S2's own folder
 import { setupS2 } from '../src/services/requests/floci-setup.js';
+// [Shared, added by S2] S1's and S3's APIs as Lambdas behind the same API Gateway "officeours-api"
+import { setupServiceApis } from './floci-api.mjs';
 
 process.env.AWS_ENDPOINT_URL ||= 'http://localhost:4566';
 const config = {
@@ -139,6 +141,8 @@ try {
   await setupS1();
   // [S2] S2's resources: its Lambda runs the whole S2 service behind the app's API Gateway
   const s2 = await setupS2();
+  // [Shared] the rest of the app's API (S1 and S3), so every /api/v1 route runs on Floci
+  await setupServiceApis();
   console.log('\nDone. Put these in server/.env:');
   console.log(`  AWS_ENDPOINT_URL=${config.endpoint}`);
   console.log(`  S3_BUCKET=${BUCKET}`);
@@ -147,7 +151,8 @@ try {
   console.log(`  SES_SENDER_EMAIL=${SENDER}`);
   console.log(`  SNS_TOPIC_ARN=${topicArn}`);
   console.log(`  AI_LOG_BUCKET=${s2.bucket}`);
-  console.log(`\nS2 API on Floci: ${s2.apiUrl}`);
+  console.log(`\nApp API on Floci (all 3 services): ${s2.apiUrl}/api/v1`);
+  console.log(`  Try it: curl.exe "${s2.apiUrl}/api/v1/health"`);
 } catch (err) {
   console.error(`\nFloci setup failed: ${err.message}`);
   console.error('Is Floci running? Start it with: docker compose up -d');
