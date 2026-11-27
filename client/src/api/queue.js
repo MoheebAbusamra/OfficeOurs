@@ -1,4 +1,4 @@
-// [S3] Calls to S3 endpoints: queue position, call next/skip/done, check-in, history + notes
+// Calls to the queue endpoints: queue position, call next/skip/done, check-in, history + notes
 import { http } from './http';
 
 // Queue (#7 student position, #11 instructor controls)

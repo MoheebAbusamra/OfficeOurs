@@ -1,4 +1,4 @@
-// [S3] Input rules per endpoint; bad input is rejected with 400 and a clear message
+// Input rules per endpoint; bad input is rejected with 400 and a clear message
 import { badRequest } from '../../shared/errors.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

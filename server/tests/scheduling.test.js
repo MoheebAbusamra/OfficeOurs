@@ -1,4 +1,4 @@
-// [S1] Tests for S1 endpoints: normal + invalid cases
+// Tests for the scheduling endpoints: normal + invalid cases
 // They call the running backend (npm run dev) on the real Supabase database, like the frontend does.
 // Run from the server folder: npm test -- tests/scheduling.test.js
 // Needs TEST_PASSWORD in server/.env (the password of the test accounts 241339, I-1001 and I-1002).
@@ -13,7 +13,7 @@ const API = 'http://localhost:3000/api/v1';
 const PASSWORD = process.env.TEST_PASSWORD;
  
 // Tokens for the 3 test accounts, filled in beforeAll
-let student; // 241339 (Judy, group CS-Y3-G1)
+let student; // 241339 (group CS-Y3-G1)
 let sara; // I-1001, teaches modules 1 and 2
 let omar; // I-1002, teaches modules 3 and 4
  

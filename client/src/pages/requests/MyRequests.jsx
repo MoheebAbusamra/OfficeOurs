@@ -1,4 +1,4 @@
-// [S2] MyRequests: Student tracks request status, edits it before it is opened, or cancels it (#2, #5)
+// MyRequests: Student tracks request status, edits it before it is opened, or cancels it (#2, #5)
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {

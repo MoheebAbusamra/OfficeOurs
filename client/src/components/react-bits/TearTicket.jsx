@@ -399,7 +399,7 @@ export default function TearTicket({
   }, [used]);
   useEffect(() => {
     reset();
-    // [S3] fix: reset() shows the stub again, so a ticket mounted already torn kept its stub
+    // fix: reset() shows the stub again, so a ticket mounted already torn kept its stub
     if (used && stubRef.current) stubRef.current.style.visibility = 'hidden';
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geo]);

@@ -1,4 +1,4 @@
-// [S3] Brevo client: emails the QR code to the student (#12)
+// Brevo client: emails the QR code to the student (#12)
 // Brevo transactional email API: https://developers.brevo.com/reference/sendtransacemail (free plan, 300 emails/day)
 const BREVO_URL = 'https://api.brevo.com/v3/smtp/email';
 

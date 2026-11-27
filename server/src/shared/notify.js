@@ -1,4 +1,4 @@
-// [Shared, owned by S2] Saves an in-app notification; the bell polls GET /notifications (#3)
+// Saves an in-app notification; the bell polls GET /notifications (#3)
 // Any service can use it:  await notify('241339', 'queue_called', 'You are next', '/student/queue/<id>')
 import { supabase } from './supabase.js';
 

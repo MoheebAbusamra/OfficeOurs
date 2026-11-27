@@ -1,4 +1,4 @@
-// [S2] Status filter tabs on one bottom line with a sliding burgundy underline (My requests + Inbox)
+// Status filter tabs on one bottom line with a sliding burgundy underline (My requests + Inbox)
 import { useLayoutEffect, useRef, useState } from 'react';
 
 const label = t => (t === 'all' ? 'All' : t.charAt(0).toUpperCase() + t.slice(1));

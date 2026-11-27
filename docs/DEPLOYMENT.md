@@ -1,4 +1,22 @@
-# OfficeOurs on Floci: deployment guide
+# OfficeOurs: deployment guide
+
+The same code runs in **two deployments**, both with **Supabase** as the database:
+
+| | Floci + Supabase | Vercel + Supabase |
+|---|---|---|
+| Purpose | The module's required AWS deployment, with every cloud service | A public URL anyone can open |
+| Address | `http://localhost:4566/officeours-web/index.html` | `https://<project>.vercel.app` |
+| Frontend | S3 bucket `officeours-web` | Vercel CDN |
+| API | API Gateway -> one Lambda per service | One Vercel Function (`api/index.js`) running the Express app |
+| Confirm -> queue + QR email | SNS -> SQS -> queue-worker Lambda | Same code, handled inside the function (`shared/events.js`) |
+| QR images, AI log | Stored in S3 | Not stored (the QR is still attached to the email) |
+| Daily holiday refresh | EventBridge -> Lambda -> DynamoDB | Not scheduled; holidays are fetched when needed |
+
+Sections 1 to 7 cover Floci, section 8 covers Vercel.
+
+---
+
+## Floci + Supabase
 
 The whole app (frontend + the 3 services' APIs) runs on **Floci**, a free local AWS emulator, with **Supabase** as the database.
 One command deploys everything:
@@ -136,6 +154,62 @@ Inside a Lambda container, Floci is reached as `http://floci:4566` (Docker netwo
 |---|---|---|
 | The website address is `localhost` | Floci is a local emulator | A tunnel (Cloudflare Tunnel or ngrok) for a public URL, or real AWS with the same scripts |
 | Page links contain `#` | The bucket serves files only; S3 website hosting is not confirmed on Floci | S3 website hosting or CloudFront with `index.html` as the error page |
-| The worker still needs `npm run dev` | The SQS → worker Lambda trigger (event source mapping) is not added yet; the local server polls the queue | Add the event source mapping in S3's setup (planned) |
+| On Floci, the queue worker still needs `npm run dev` | The SQS -> worker Lambda trigger (event source mapping) is not added yet; the local server polls the queue | Add the event source mapping in the queue service's setup (planned) |
 | First request to a Lambda takes a few seconds | Floci starts a container per Lambda (cold start) | Keep-warm pings, or provisioned concurrency on real AWS |
 | IAM policies are not enforced | Floci accepts every call | Real AWS enforces the same policies as written |
+| Vercel: QR images and the AI log are not stored | There is no S3 on Vercel | Vercel Blob storage, or real AWS S3 |
+| Vercel: no daily holiday refresh | There is no EventBridge on Vercel | A Vercel Cron Job calling a refresh endpoint |
+| Vercel: dates near midnight can be off by a day | Vercel servers run on UTC, the app uses the server's local date | Compute dates in `Africa/Cairo` explicitly |
+
+---
+
+## 8. Vercel + Supabase (public deployment)
+
+**One Vercel project** serves everything from one address:
+
+```mermaid
+flowchart LR
+  B[Browser] -->|pages, JS, CSS| CDN[Vercel CDN<br/>client/dist]
+  B -->|/api/v1/...| F[Vercel Function api/index.js<br/>Express app: all 3 services]
+  F --> DB[(Supabase)]
+  F --> X[Gemini, Calendarific, Brevo]
+```
+
+| File | What it does |
+|---|---|
+| `vercel.json` | Installs `server` and `client`, builds the React app with `VITE_API_URL=/api/v1` and mocks off, sends `/api/*` to the function and every other path to `index.html` (so links like `/student/requests` work) |
+| `api/index.js` | Exports the Express app from `server/src/index.js` as the function |
+| `server/src/index.js` | Does not open a port when `VERCEL` is set (Vercel runs it per request) |
+| `server/src/shared/events.js` | Without SNS, "request confirmed" is handled in the same function: queue entry, QR code, email |
+
+The frontend and the API share one address, so there is no CORS setup.
+
+### Steps (Vercel dashboard)
+
+1. **vercel.com -> Add New -> Project**, import the GitHub repository.
+2. **Root Directory:** leave it as the repository root. **Framework Preset:** Other (`vercel.json` sets the install, build and output).
+3. **Environment Variables** (Settings -> Environment Variables), copied from `server/.env`:
+
+   | Variable | Value |
+   |---|---|
+   | `SUPABASE_URL`, `SUPABASE_SECRET_KEY` | From Supabase |
+   | `GEMINI_API_KEY`, `GEMINI_MODEL` | Gemini key, `gemini-3.5-flash-lite` |
+   | `CALENDARIFIC_API_KEY` | Calendarific key |
+   | `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME` | Brevo |
+   | `APP_TIMEZONE` | `Africa/Cairo` |
+   | `CLIENT_URL`, `CHECKIN_BASE_URL` | `https://<project>.vercel.app` (QR codes open `/check-in/<token>` there) |
+
+   Do **not** set `AWS_ENDPOINT_URL`, `SNS_TOPIC_ARN` or the other Floci values: without them the AWS parts switch off.
+4. **Deploy.** Then put the real address in `CLIENT_URL` and `CHECKIN_BASE_URL` and redeploy once.
+5. Every push to the production branch (`main` by default) redeploys; other branches get preview URLs.
+
+Optional: Settings -> Functions -> Region close to the Supabase project's region, for faster database calls.
+
+### Checking it
+
+| Check | Expected |
+|---|---|
+| `https://<project>.vercel.app/api/v1/health` | `{"data":{"status":"ok"}}` |
+| Open the site, log in, book, run the AI check | Works like local development |
+| Confirm the request as the instructor | The student is queued and gets the QR email, its link opens `.../check-in/<token>` on Vercel |
+| Vercel dashboard -> Logs | One line per API call, plus `[events] RequestConfirmed handled in-process` |

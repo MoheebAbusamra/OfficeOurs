@@ -15,21 +15,22 @@ app.use(express.json({ limit: '100kb' }));
 
 app.get('/api/v1/health', (req, res) => res.json({ data: { status: 'ok' } }));
 
-// S1 Scheduling & Access
+// Scheduling & access
 app.use('/api/v1', authRoutes);
 app.use('/api/v1', schedulingRoutes);
 
-// S2 Requests, FAQ & Notifications
+// Requests, FAQ & notifications
 app.use('/api/v1', requestsRoutes);
 
-// [S3] queue, check-in, meetings
+// queue, check-in, meetings
 app.use('/api/v1', queueRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-// Tests import { app } without starting the server or the SQS consumer
-if (process.env.NODE_ENV !== 'test') {
+// Tests import { app } without starting the server or the SQS consumer.
+// On Vercel (VERCEL=1) the app runs as a serverless function (api/index.js), so it does not listen on a port.
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   const port = process.env.PORT || 3000;
   app.listen(port, () => console.log(`Server running on http://localhost:${port}`));
   startQueueConsumer();

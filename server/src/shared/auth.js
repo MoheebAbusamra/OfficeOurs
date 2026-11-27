@@ -1,4 +1,4 @@
-// [S1] Middleware: verifies the token from /auth/login (via Supabase on the server) and checks the role (student/instructor) (#A)
+// Middleware: verifies the token from /auth/login (via Supabase on the server) and checks the role (student/instructor) (#A)
 import { supabase } from './supabase.js';
 import { AppError } from './errors.js';
 

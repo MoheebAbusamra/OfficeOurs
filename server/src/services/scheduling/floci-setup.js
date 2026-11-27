@@ -1,4 +1,4 @@
-// [S1] Creates S1's AWS resources on Floci (safe to run again): DynamoDB table, IAM roles, Lambda, EventBridge schedule, API Gateway
+// Creates the scheduling service's AWS resources on Floci (safe to run again): DynamoDB table, IAM roles, Lambda, EventBridge schedule, API Gateway
 // Run it from the server folder:  node src/services/scheduling/floci-setup.js
 // (scripts/floci-setup.mjs also calls setupS1(), so the whole group's setup is one command)
 import 'dotenv/config';
@@ -12,7 +12,7 @@ import { SchedulerClient, CreateScheduleCommand, GetScheduleCommand } from '@aws
 import { ApiGatewayV2Client, CreateApiCommand, GetApisCommand, CreateIntegrationCommand, CreateRouteCommand, CreateStageCommand } from '@aws-sdk/client-apigatewayv2';
 import { HOLIDAYS_TABLE } from './dynamo.js';
  
-// Names of S1's resources on Floci
+// Names of the scheduling service's resources on Floci
 const LAMBDA = 'officeours-holidays';
 const LAMBDA_ROLE = 'officeours-holidays-lambda-role';
 const SCHEDULER_ROLE = 'officeours-holidays-scheduler-role';
@@ -241,7 +241,7 @@ async function createApi(lambdaArn) {
   console.log(`      Try it: curl "http://${api.ApiId}.execute-api.localhost.floci.io:4566/holidays?year=2026"`);
 }
  
-// Creates everything S1 needs, in order
+// Creates everything the scheduling service needs, in order
 export async function setupS1() {
   console.log(`Setting up S1 (Scheduling) resources on ${config.endpoint}`);
   await createHolidaysTable();

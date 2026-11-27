@@ -1,4 +1,4 @@
-// [S1] ManageSlots: Instructor creates/edits/deletes slots (#8)
+// ManageSlots: Instructor creates/edits/deletes slots (#8)
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Ban, CalendarPlus, Clock, ListOrdered, MapPin, Pencil, Trash2, X } from 'lucide-react';

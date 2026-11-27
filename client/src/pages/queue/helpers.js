@@ -1,4 +1,4 @@
-// [S3] Small helpers shared by the S3 pages: 5-second polling and date/time formatting
+// Small helpers shared by the queue pages: 5-second polling and date/time formatting
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export const POLL_MS = 5000;

@@ -1,6 +1,7 @@
 {
   "name": "officeours",
   "private": true,
+  "type": "module",
   "description": "Root scripts: install and run client + server together",
   "scripts": {
     "install:all": "npm install && npm install --prefix client && npm install --prefix server",

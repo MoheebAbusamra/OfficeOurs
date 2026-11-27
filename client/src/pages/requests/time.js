@@ -1,4 +1,4 @@
-// [S2] Small date/time helpers shared by the S2 pages (local time, never UTC, so late-night dates stay right)
+// Small date/time helpers shared by the requests pages (local time, never UTC, so late-night dates stay right)
 export const DURATIONS = [10, 15, 20, 30];
 
 // "10:00" or "10:00:00" <-> minutes since midnight

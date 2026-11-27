@@ -1,10 +1,10 @@
-// [S2] Creates S2's AWS resources on Floci (safe to run again, existing resources are reused or updated):
-//   1. SNS topic        S2 publishes "request confirmed / cancelled" here (S3 subscribes its SQS queue to it)
+// Creates the requests service's AWS resources on Floci (safe to run again, existing resources are reused or updated):
+//   1. SNS topic        the service publishes "request confirmed / cancelled" here (the queue service subscribes its SQS queue to it)
 //   2. S3 bucket        the AI log, one JSON file per Gemini call
-//   3. IAM role         what the S2 Lambda may do: publish to the topic, write to the bucket, write logs
-//   4. Lambda           "officeours-requests" = the whole S2 service (lambda.js wraps our Express routes)
-//   5. API Gateway      S2's routes on the app's one HTTP API "officeours-api"
-// Steps 3 to 5 use the shared helper scripts/floci-http-lambda.mjs, the same one S1's and S3's APIs use.
+//   3. IAM role         what the requests Lambda may do: publish to the topic, write to the bucket, write logs
+//   4. Lambda           "officeours-requests" = the whole requests service (lambda.js wraps our Express routes)
+//   5. API Gateway      the service's routes on the app's one HTTP API "officeours-api"
+// Steps 3 to 5 use the shared helper scripts/floci-http-lambda.mjs, the same one the scheduling and queue APIs use.
 // scripts/floci-setup.mjs calls setupS2(), so the whole group's setup stays one command.
 // It can also run alone, from the server folder: node src/services/requests/floci-setup.js
 import 'dotenv/config';
@@ -13,13 +13,13 @@ import { SNSClient, CreateTopicCommand } from '@aws-sdk/client-sns';
 import { S3Client, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/client-s3';
 import { deployHttpLambda, baseLambdaEnv, flociConfig } from '../../../scripts/floci-http-lambda.mjs';
 
-// Names of S2's resources on Floci
-const TOPIC = 'officeours-request-events'; // same name as in S3's setup: creating it again returns the same topic
+// Names of the requests service's resources on Floci
+const TOPIC = 'officeours-request-events'; // same name as in the queue service's setup: creating it again returns the same topic
 const BUCKET = process.env.AI_LOG_BUCKET || 'officeours-ai-log';
 const ROLE = 'officeours-requests-lambda-role';
 const LAMBDA = 'officeours-requests';
 
-// S2's paths. "{proxy+}" = anything below the path, e.g. /api/v1/requests/<id>/status. ANY = every HTTP method.
+// The service's paths. "{proxy+}" = anything below the path, e.g. /api/v1/requests/<id>/status. ANY = every HTTP method.
 const ROUTES = ['/api/v1/requests', '/api/v1/faqs', '/api/v1/notifications']
   .flatMap((path) => [`ANY ${path}`, `ANY ${path}/{proxy+}`]);
 
@@ -44,7 +44,7 @@ async function createBucket() {
   step('S3 bucket (AI log)', BUCKET);
 }
 
-// Creates everything S2 needs, in order, and returns the values for server/.env
+// Creates everything the requests service needs, in order, and returns the values for server/.env
 export async function setupS2() {
   console.log(`Setting up S2 (Requests, FAQ & Notifications) resources on ${flociConfig.endpoint}`);
   const topicArn = await createTopic();

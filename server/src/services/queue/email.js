@@ -1,4 +1,4 @@
-// [S3] Builds the "your QR ticket" email (subject, HTML, plain text) sent by Brevo and copied to SES
+// Builds the "your QR ticket" email (subject, HTML, plain text) sent by Brevo and copied to SES
 import { checkInUrl } from './qr.js';
 
 const escape = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

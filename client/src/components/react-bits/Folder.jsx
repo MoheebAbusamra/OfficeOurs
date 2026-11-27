@@ -1,4 +1,4 @@
-// [S1] React Bits Folder (third-party, added with the shadcn CLI): 3D folder used on BrowseSlots to pick a module
+// React Bits Folder (third-party, added with the shadcn CLI): 3D folder used on BrowseSlots to pick a module
 'use client';
 
 import { Children, isValidElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';

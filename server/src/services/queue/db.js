@@ -1,4 +1,4 @@
-// [S3] Supabase queries only (create/read/update/delete/search)
+// Supabase queries only (create/read/update/delete/search)
 import { supabase, unwrap } from '../../shared/supabase.js';
 
 // Columns we read with every queue entry: the request title and the student's name and email
@@ -16,7 +16,7 @@ const MEETING_COLS = `id, request_id, slot_id, student_id, instructor_id, starte
   student:university_registry!meetings_student_id_fkey(university_id, full_name),
   instructor:university_registry!meetings_instructor_id_fkey(university_id, full_name)`;
 
-// ---------------- Slots and requests (read only, owned by S1 and S2) ----------------
+// ---------------- Slots and requests (read only, owned by the scheduling and requests services) ----------------
 export const getSlot = async slotId =>
   unwrap(await supabase.from('slots').select(SLOT_COLS).eq('id', slotId).maybeSingle());
 
@@ -27,7 +27,7 @@ export const getRequestWithSlot = async requestId =>
       student:university_registry(university_id, full_name, email), slot:slots(${SLOT_COLS})`)
     .eq('id', requestId).maybeSingle());
 
-// S3 closes the request lifecycle: confirmed -> completed when the meeting is done
+// The queue service closes the request lifecycle: confirmed -> completed when the meeting is done
 export const setRequestCompleted = async requestId =>
   unwrap(await supabase.from('requests').update({ status: 'completed' }).eq('id', requestId).eq('status', 'confirmed'));
 

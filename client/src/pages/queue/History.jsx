@@ -1,4 +1,4 @@
-// [S3] History: Past meetings + notes for both roles (#4)
+// History: Past meetings + notes for both roles (#4)
 import { useCallback, useEffect, useState } from 'react';
 import { ChevronDown, Clock, Search, UserRound, X } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';

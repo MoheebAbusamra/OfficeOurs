@@ -1,4 +1,4 @@
-// [S1] Password field with a show/hide toggle: a small student who opens their eyes when the password is visible
+// Password field with a show/hide toggle: a small student who opens their eyes when the password is visible
 import { useState } from 'react';
 
 function StudentFace({ open }) {

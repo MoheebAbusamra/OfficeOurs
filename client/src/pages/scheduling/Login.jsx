@@ -1,4 +1,4 @@
-// [S1] Login: Login form (university ID + password)
+// Login: Login form (university ID + password)
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';

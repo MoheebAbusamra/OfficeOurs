@@ -1,4 +1,4 @@
-// [S3] Stores QR code images in an S3 bucket on Floci (key: qr/<token>.png)
+// Stores QR code images in an S3 bucket on Floci (key: qr/<token>.png)
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { awsConfig, awsEnabled } from './aws.js';
 

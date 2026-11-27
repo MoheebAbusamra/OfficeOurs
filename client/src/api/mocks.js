@@ -1,4 +1,4 @@
-// [Shared] Temporary mock backend: same data as supabase/seed.sql, same response shapes as docs/openapi.yaml.
+// Temporary mock backend: same data as supabase/seed.sql, same response shapes as docs/openapi.yaml.
 // Used only when VITE_USE_MOCKS=true. Delete this file (and the import in http.js) once the real backend is ready.
 // Demo login: any seeded ID (e.g. 241339 student, I-1001 instructor) with any password of 8+ characters.
 
@@ -58,7 +58,7 @@ for (let i = 1; i <= 14; i++) {
 }
 const pastSlot = { id: 'slot-past', instructorId: 'I-1001', moduleId: 1, slotDate: iso(addDays(-3)), startTime: '10:00', endTime: '12:00', location: 'Room C-204', capacity: 6, status: 'active' };
 slots.push(pastSlot);
-// [S3] A slot today so the check-in demo (/check-in/mock-valid) can actually be torn
+// A slot today so the check-in demo (/check-in/mock-valid) can actually be torn
 const todaySlot = { id: 'slot-today', instructorId: 'I-1001', moduleId: 2, slotDate: iso(new Date()), startTime: '09:00', endTime: '20:00', location: 'Room C-204', capacity: 6, status: 'active' };
 slots.push(todaySlot);
 const firstSlot = id => slots.find(s => s.instructorId === id && s.slotDate > iso(new Date()));
@@ -82,7 +82,7 @@ const requests = [
   { id: 'req-7', studentId: '240102', slotId: todaySlot.id, title: 'Consistency models recap', description: 'Can we go over eventual vs strong consistency with an example?', preferredStart: '11:30', preferredEnd: '11:45', priority: 'low', status: 'confirmed', openedAt: now() },
   { id: 'req-8', studentId: '240101', slotId: pastSlot.id, title: 'IAM roles for the Lambda', description: 'Which permissions does the queue Lambda need on Floci?', preferredStart: '10:15', preferredEnd: '10:30', priority: 'normal', status: 'confirmed', openedAt: now() },
 ].map(r => ({ faqSuggestion: null, statusReason: null, cancelledBy: null, createdAt: now(), updatedAt: now(), ...r }));
-// [S3] Check-in demo URLs: /check-in/<qrToken>. Any other token (e.g. /check-in/mock-mismatched) is "This QR code is not valid".
+// Check-in demo URLs: /check-in/<qrToken>. Any other token (e.g. /check-in/mock-mismatched) is "This QR code is not valid".
 const queue = [
   { id: 'q-1', slotId: s1.id, requestId: 'req-1', position: 1, status: 'waiting', qrToken: 'mock-nottoday', checkedInAt: null, calledAt: null, finishedAt: null },
   { id: 'q-2', slotId: pastSlot.id, requestId: 'req-4', position: 1, status: 'done', qrToken: 'mock-used', checkedInAt: now(), calledAt: now(), finishedAt: now() },
@@ -306,7 +306,7 @@ const routes = [
   ['PATCH', '/faqs/:id', (p, q, b) => { const f = faqs.find(x => x.id === p.id); if (!f) return fail(404, 'NOT_FOUND', 'FAQ not found'); Object.assign(f, b); return ok(f); }],
   ['DELETE', '/faqs/:id', (p) => { const i = faqs.findIndex(x => x.id === p.id); if (i < 0) return fail(404, 'NOT_FOUND', 'FAQ not found'); faqs.splice(i, 1); return { status: 204, json: null }; }],
 
-  // ---- [S3] queue, check-in, meetings (same shapes and main rules as server/src/services/queue) ----
+  // ---- queue, check-in, meetings (same shapes and main rules as server/src/services/queue) ----
   ['GET', '/queue/position/:requestId', (p, q, b, u) => {
     const e = queue.find(x => x.requestId === p.requestId); if (!e) return fail(404, 'NOT_FOUND', 'This request is not in a queue yet');
     const r = requests.find(x => x.id === e.requestId); if (r.studentId !== u.universityId) return fail(403, 'FORBIDDEN', 'This is not your request');

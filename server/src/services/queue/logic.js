@@ -1,4 +1,4 @@
-// [S3] Business rules: add to queue on confirm, position count, call next/skip/done, done -> history record, QR check-in
+// Business rules: add to queue on confirm, position count, call next/skip/done, done -> history record, QR check-in
 import { AppError, conflict, forbidden, notFound } from '../../shared/errors.js';
 import * as db from './db.js';
 import { notify } from './notify.js';
@@ -280,7 +280,7 @@ export async function saveNotes(user, id, notes) {
   return meetingOut(await db.updateMeetingNotes(id, column, notes || null));
 }
 
-// ---------------- #14 Add to queue when S2 confirms a request (called by the SQS consumer / Lambda) ----------------
+// ---------------- #14 Add to queue when the instructor confirms a request (called by the SQS consumer / Lambda) ----------------
 // Idempotent: a repeated event for the same request returns the existing entry and sends nothing again.
 export async function addToQueue(requestId) {
   const request = await db.getRequestWithSlot(requestId);
@@ -345,7 +345,7 @@ export async function processRequestConfirmed(requestId) {
   return { requestId, queueEntryId: entry.id, position: entry.position, created, to: request.student?.email, delivery };
 }
 
-// When S2 cancels a confirmed request, its queue entry is taken out of the line
+// When a confirmed request is cancelled, its queue entry is taken out of the line
 export async function removeFromQueue(requestId) {
   const entry = await db.getEntryByRequest(requestId);
   if (!entry || !ACTIVE.includes(entry.status)) return { removed: false };

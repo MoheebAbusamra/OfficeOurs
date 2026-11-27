@@ -1,4 +1,4 @@
-# [S3] Floci (free AWS emulator): every AWS service on http://localhost:4566. Start with: docker compose up -d
+# Floci (free AWS emulator): every AWS service on http://localhost:4566. Start with: docker compose up -d
 # Then create the resources with: npm run floci:setup --prefix server
 name: officeours
 

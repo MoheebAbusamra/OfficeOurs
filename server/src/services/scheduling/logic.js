@@ -1,4 +1,4 @@
-// [S1] Business rules: no overlapping slots, no slots on holidays/weekends, clash ranking, dashboard stats, notifications
+// Business rules: no overlapping slots, no slots on holidays/weekends, clash ranking, dashboard stats, notifications
 import { AppError } from '../../shared/errors.js';
 import * as db from './db.js';
 import { fetchEgyptHolidays } from './calendarific.js';
@@ -462,11 +462,11 @@ export async function getHolidays(year) {
   return holidays;
 }
  
-// GET /dashboard (instructors only): numbers from S1 slots, S2 requests and S3 meetings
+// GET /dashboard (instructors only): numbers from slots, requests and meetings
 export async function getDashboard(user) {
   const today = new Date().toLocaleDateString('en-CA');
  
-  // 1. All my slots (S1). Upcoming = active and today or later
+  // 1. All my slots. Upcoming = active and today or later
   const slots = await db.findSlots({ instructorId: user.universityId });
   let upcomingSlots = 0;
   const slotIds = [];
@@ -475,7 +475,7 @@ export async function getDashboard(user) {
     if (s.status === 'active' && s.slot_date >= today) upcomingSlots++;
   }
  
-  // 2. All requests on my slots (S2)
+  // 2. All requests on my slots
   let requests = [];
   if (slotIds.length > 0) {
     requests = await db.findRequestsOfSlots(slotIds);
@@ -484,7 +484,7 @@ export async function getDashboard(user) {
   // 3. Count them in one loop
   let pendingRequests = 0;
   let highPriorityPending = 0;
-  let accepted = 0; // confirmed, or confirmed and then completed by S3
+  let accepted = 0; // confirmed, or confirmed and then completed by the queue service
   let rejected = 0;
   let faqDeflections = 0;
   for (const r of requests) {
@@ -527,7 +527,7 @@ export async function getDashboard(user) {
     }
   }
  
-  // 5. Meetings (S3): total, this week (the week starts on Sunday), and average length
+  // 5. Meetings: total, this week (the week starts on Sunday), and average length
   const meetings = await db.findMeetingsOfInstructor(user.universityId);
   const now = new Date();
   const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()); // last Sunday, 00:00

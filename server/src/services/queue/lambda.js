@@ -1,4 +1,4 @@
-// [S3] AWS Lambda handler (deployed to Floci): gets "request confirmed" messages from SQS, adds the student to the queue,
+// AWS Lambda handler (deployed to Floci): gets "request confirmed" messages from SQS, adds the student to the queue,
 // makes the QR code (stored in S3) and sends the ticket email (Brevo + SES copy). Bundled by floci/package-lambda.mjs.
 import { handleMessageBody } from './events.js';
 

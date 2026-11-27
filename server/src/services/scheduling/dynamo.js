@@ -1,4 +1,4 @@
-// [S1] DynamoDB on Floci: the holidays cache (table "officeours-holidays", one item per holiday)
+// DynamoDB on Floci: the holidays cache (table "officeours-holidays", one item per holiday)
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
  

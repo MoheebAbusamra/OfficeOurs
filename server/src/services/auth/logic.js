@@ -1,4 +1,4 @@
-// [S1] Auth rules: student ID must exist in seed data, auto-fills group/modules/schedule, calls Supabase Auth
+// Auth rules: student ID must exist in seed data, auto-fills group/modules/schedule, calls Supabase Auth
 import { AppError } from '../../shared/errors.js';
 import * as db from './db.js';
  

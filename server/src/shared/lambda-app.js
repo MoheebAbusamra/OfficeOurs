@@ -1,5 +1,5 @@
-// [Shared, added by S2 for the Floci deployment] Turns a service's Express routers into one AWS Lambda handler.
-// Every service Lambda (S1, S2, S3) is built from this, so all of them behave the same as `npm run dev`:
+// Turns a service's Express routers into one AWS Lambda handler.
+// Every service Lambda (scheduling, requests, queue) is built from this, so all of them behave the same as `npm run dev`:
 // same routes, same validation, same { error } format, same CORS rules.
 //
 // API Gateway hands a Lambda a JSON event, not a real HTTP request. serverless-http translates it into an

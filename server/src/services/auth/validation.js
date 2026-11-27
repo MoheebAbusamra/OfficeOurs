@@ -1,4 +1,4 @@
-// [S1] Input rules for register/login (university ID and password); bad input -> 400
+// Input rules for register/login (university ID and password); bad input -> 400
 import { AppError } from '../../shared/errors.js';
  
 // POST /auth/register body: { universityId, password }

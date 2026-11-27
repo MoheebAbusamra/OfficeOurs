@@ -1,4 +1,4 @@
-// [S2] Input or textarea with a live character counter and a thin ink bar (used by FAQs and New request)
+// Input or textarea with a live character counter and a thin ink bar (used by FAQs and New request)
 export default function CountedField({ id, label, value, onChange, error, max, multiline, autoFocus, placeholder }) {
   const len = value.trim().length;
   const ratio = Math.min(len / max, 1);

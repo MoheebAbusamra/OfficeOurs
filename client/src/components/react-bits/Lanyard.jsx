@@ -1,4 +1,4 @@
-// [S1] React Bits Lanyard (third-party, added with the shadcn CLI): 3D badge used on BrowseSlots to pick an instructor
+// React Bits Lanyard (third-party, added with the shadcn CLI): 3D badge used on BrowseSlots to pick an instructor
 'use client';
 
 import { useEffect, useRef } from 'react';

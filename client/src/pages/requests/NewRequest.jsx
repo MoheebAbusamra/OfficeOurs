@@ -1,4 +1,4 @@
-// [S2] NewRequest: Student describes the question, the AI checks it against the FAQ, then picks a time and sends the request (#6, #13)
+// NewRequest: Student describes the question, the AI checks it against the FAQ, then picks a time and sends the request (#6, #13)
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {

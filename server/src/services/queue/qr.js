@@ -1,4 +1,4 @@
-// [S3] Generates the QR code containing the check-in link/token (#12)
+// Generates the QR code containing the check-in link/token (#12)
 import QRCode from 'qrcode';
 
 // Public frontend URL the QR opens, e.g. https://officeours.vercel.app/check-in/<token>

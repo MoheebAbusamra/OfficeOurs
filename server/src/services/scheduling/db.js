@@ -1,4 +1,4 @@
-// [S1] Supabase queries only (create/read/update/delete/search)
+// Supabase queries only (create/read/update/delete/search)
 import { supabase } from '../../shared/supabase.js';
  
 // The columns we read for a slot. "university_registry(...)" and "modules(...)" join the
@@ -143,7 +143,7 @@ export async function cancelRequests(requestIds, reason) {
   if (error) throw error;
 }
  
-// Saves notifications; the bell (S2) shows them to the students
+// Saves notifications; the bell shows them to the students
 export async function insertNotifications(notifications) {
   const { error } = await supabase.from('notifications').insert(notifications);
   if (error) throw error;
@@ -176,7 +176,7 @@ export async function findRequestsOfSlots(slotIds) {
   return data;
 }
  
-// All meetings of an instructor (written by S3 when a meeting is done)
+// All meetings of an instructor (written by the queue service when a meeting is done)
 export async function findMeetingsOfInstructor(instructorId) {
   const { data, error } = await supabase
     .from('meetings')

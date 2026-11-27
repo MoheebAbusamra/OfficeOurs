@@ -1,4 +1,4 @@
-// [S1] Supabase queries for auth: look up student ID in the registry, create/read user profile
+// Supabase queries for auth: look up student ID in the registry, create/read user profile
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../../shared/supabase.js';
  

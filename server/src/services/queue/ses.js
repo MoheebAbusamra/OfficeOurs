@@ -1,4 +1,4 @@
-// [S3] Keeps a copy of every ticket email in SES on Floci (the real delivery is done by Brevo)
+// Keeps a copy of every ticket email in SES on Floci (the real delivery is done by Brevo)
 import { SendEmailCommand, SESClient } from '@aws-sdk/client-ses';
 import { awsConfig, awsEnabled } from './aws.js';
 

@@ -1,4 +1,4 @@
-/* [S3] Page styles for the S3 pages (StudentQueue, InstructorQueue, History, CheckIn) */
+/* Page styles for the queue pages (StudentQueue, InstructorQueue, History, CheckIn) */
 
 /* ---------- Queue status badges ---------- */
 .badge-waiting { background: var(--butter); }

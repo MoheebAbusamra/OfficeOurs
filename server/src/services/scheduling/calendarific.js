@@ -1,5 +1,5 @@
-// [S1] Calendarific client: fetches Egypt holidays once per year and caches them in the DB (#15)
-// [S1] Calendarific client: fetches Egypt holidays once per year and caches them in the DB (#15)
+// Calendarific client: fetches Egypt holidays once per year and caches them in the DB (#15)
+// Calendarific client: fetches Egypt holidays once per year and caches them in the DB (#15)
 import { AppError } from '../../shared/errors.js';
  
 // Asks Calendarific for Egypt's public holidays in one year.

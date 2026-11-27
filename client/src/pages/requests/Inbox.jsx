@@ -1,4 +1,4 @@
-// [S2] Inbox: Instructor reads requests grouped by slot and confirms or rejects them, with keyboard shortcuts (#9)
+// Inbox: Instructor reads requests grouped by slot and confirms or rejects them, with keyboard shortcuts (#9)
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -186,7 +186,7 @@ export default function Inbox() {
     try {
       const res = await setRequestStatus(r.id, 'confirmed');
       setRequests(list => list.map(x => (x.id === r.id ? res.data : x))); // instant badge, stamp and seat count
-      // S3 has just queued the student: read their position from the slot's queue
+      // The student has just been queued: read their position from the slot's queue
       const position = await getSlotQueue(r.slot.id)
         .then(res => res.data.find(e => e.requestId === r.id)?.position)
         .catch(() => null);

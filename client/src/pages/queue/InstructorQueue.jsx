@@ -1,4 +1,4 @@
-// [S3] InstructorQueue: Instructor calls next, skips or ends the queue (#11)
+// InstructorQueue: Instructor calls next, skips or ends the queue (#11)
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {

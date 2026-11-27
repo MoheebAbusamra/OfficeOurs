@@ -1,4 +1,4 @@
-// [S2] Supabase queries only (create/read/update/delete/search)
+// Supabase queries only (create/read/update/delete/search)
 import { supabase } from '../../shared/supabase.js';
 
 // ------------------------------------------------------------------ FAQ (#13)
@@ -49,10 +49,10 @@ export async function deleteFaq(id) {
 
 // The columns we read for a request. The parts in brackets join other tables through foreign keys:
 //   university_registry(...)  the student (requests.student_id)
-//   slots(...)                the slot, with its instructor and module (S1's table, read only)
-//   queue_entries(...)        the queue entry once S3 has queued the request (S3's table, read only)
+//   slots(...)                the slot, with its instructor and module (scheduling table, read only)
+//   queue_entries(...)        the queue entry once the request is queued (queue table, read only)
 // "!name_fkey" tells Supabase which foreign key to follow, because requests and slots are also
-// linked through S3's queue_entries and meetings tables
+// linked through the queue_entries and meetings tables
 const REQUEST_COLUMNS = `
   id, student_id, slot_id, title, description, preferred_start, preferred_end, priority, status,
   faq_suggestion, opened_at, status_reason, cancelled_by, created_at, updated_at,

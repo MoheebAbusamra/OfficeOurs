@@ -1,4 +1,4 @@
-// [S3] Reads the events S2 publishes (SNS -> SQS) and runs the matching S3 job
+// Reads the events the requests service publishes (SNS -> SQS) and runs the matching queue job
 // Message format: { "eventType": "RequestConfirmed", "eventId", "occurredAt", "data": { "requestId" } }
 import { processRequestConfirmed, removeFromQueue } from './logic.js';
 import { isUuid } from './validation.js';
