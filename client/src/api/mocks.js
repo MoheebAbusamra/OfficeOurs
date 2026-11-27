@@ -1,4 +1,4 @@
-// [Shared] Temporary mock backend: same data as supabase/seed.sql, same response shapes as docs/openapi.yaml.
+// Temporary mock backend: same data as supabase/seed.sql, same response shapes as docs/openapi.yaml.
 // Used only when VITE_USE_MOCKS=true. Delete this file (and the import in http.js) once the real backend is ready.
 // Demo login: any seeded ID (e.g. 241339 student, I-1001 instructor) with any password of 8+ characters.
 
@@ -58,6 +58,9 @@ for (let i = 1; i <= 14; i++) {
 }
 const pastSlot = { id: 'slot-past', instructorId: 'I-1001', moduleId: 1, slotDate: iso(addDays(-3)), startTime: '10:00', endTime: '12:00', location: 'Room C-204', capacity: 6, status: 'active' };
 slots.push(pastSlot);
+// A slot today so the check-in demo (/check-in/mock-valid) can actually be torn
+const todaySlot = { id: 'slot-today', instructorId: 'I-1001', moduleId: 2, slotDate: iso(new Date()), startTime: '09:00', endTime: '20:00', location: 'Room C-204', capacity: 6, status: 'active' };
+slots.push(todaySlot);
 const firstSlot = id => slots.find(s => s.instructorId === id && s.slotDate > iso(new Date()));
 
 const faqs = [
@@ -74,10 +77,19 @@ const requests = [
   { id: 'req-2', studentId: '244690', slotId: s1.id, title: 'Clarification on cloud service models', description: 'I need help choosing and justifying the cloud model for our project report.', preferredStart: '10:15', preferredEnd: '10:30', priority: 'normal', status: 'pending', openedAt: null },
   { id: 'req-3', studentId: '240101', slotId: s1.id, title: 'Project deadline date', description: 'When exactly is the final cloud project due and where do we submit?', preferredStart: '10:30', preferredEnd: '10:40', priority: 'low', status: 'rejected', openedAt: now(), statusReason: 'This is answered in the FAQ: week 12, see the module page.' },
   { id: 'req-4', studentId: '241339', slotId: pastSlot.id, title: 'Help with milestone 1 architecture diagram', description: 'I am not sure how to show the three layers and the external APIs on the diagram.', preferredStart: '10:00', preferredEnd: '10:15', priority: 'normal', status: 'completed', openedAt: now() },
+  { id: 'req-5', studentId: '241339', slotId: todaySlot.id, title: 'SQS retries and the dead-letter queue', description: 'My consumer keeps reprocessing the same message. How many retries before it goes to the DLQ?', preferredStart: '11:00', preferredEnd: '11:15', priority: 'normal', status: 'confirmed', openedAt: now() },
+  { id: 'req-6', studentId: '240101', slotId: todaySlot.id, title: 'SES sender verification on Floci', description: 'Do we need to verify the sender address before SES on Floci accepts the email?', preferredStart: '11:15', preferredEnd: '11:30', priority: 'normal', status: 'confirmed', openedAt: now() },
+  { id: 'req-7', studentId: '240102', slotId: todaySlot.id, title: 'Consistency models recap', description: 'Can we go over eventual vs strong consistency with an example?', preferredStart: '11:30', preferredEnd: '11:45', priority: 'low', status: 'confirmed', openedAt: now() },
+  { id: 'req-8', studentId: '240101', slotId: pastSlot.id, title: 'IAM roles for the Lambda', description: 'Which permissions does the queue Lambda need on Floci?', preferredStart: '10:15', preferredEnd: '10:30', priority: 'normal', status: 'confirmed', openedAt: now() },
 ].map(r => ({ faqSuggestion: null, statusReason: null, cancelledBy: null, createdAt: now(), updatedAt: now(), ...r }));
+// Check-in demo URLs: /check-in/<qrToken>. Any other token (e.g. /check-in/mock-mismatched) is "This QR code is not valid".
 const queue = [
-  { id: 'q-1', slotId: s1.id, requestId: 'req-1', position: 1, status: 'waiting', qrToken: 'demo-token-123', checkedInAt: null, calledAt: null, finishedAt: null },
-  { id: 'q-2', slotId: pastSlot.id, requestId: 'req-4', position: 1, status: 'done', qrToken: 'demo-token-old', checkedInAt: now(), calledAt: now(), finishedAt: now() },
+  { id: 'q-1', slotId: s1.id, requestId: 'req-1', position: 1, status: 'waiting', qrToken: 'mock-nottoday', checkedInAt: null, calledAt: null, finishedAt: null },
+  { id: 'q-2', slotId: pastSlot.id, requestId: 'req-4', position: 1, status: 'done', qrToken: 'mock-used', checkedInAt: now(), calledAt: now(), finishedAt: now() },
+  { id: 'q-3', slotId: todaySlot.id, requestId: 'req-5', position: 1, status: 'waiting', qrToken: 'mock-valid', checkedInAt: null, calledAt: null, finishedAt: null },
+  { id: 'q-4', slotId: todaySlot.id, requestId: 'req-6', position: 2, status: 'waiting', qrToken: 'mock-checkedin', checkedInAt: now(), calledAt: null, finishedAt: null },
+  { id: 'q-5', slotId: todaySlot.id, requestId: 'req-7', position: 3, status: 'skipped', qrToken: 'mock-skipped', checkedInAt: null, calledAt: null, finishedAt: now() },
+  { id: 'q-6', slotId: pastSlot.id, requestId: 'req-8', position: 2, status: 'waiting', qrToken: 'mock-expired', checkedInAt: null, calledAt: null, finishedAt: null },
 ];
 const meetings = [{ id: 'meet-1', requestId: 'req-4', slotId: pastSlot.id, studentId: '241339', instructorId: 'I-1001', startedAt: `${pastSlot.slotDate}T10:00:00Z`, endedAt: `${pastSlot.slotDate}T10:15:00Z`, instructorNotes: 'Explained the 3 layers; add Supabase and the external APIs to the diagram.', studentNotes: 'Redraw diagram with labels for each cloud service.' }];
 const notifications = [
@@ -108,10 +120,10 @@ const requestOut = (r, user) => ({
   canEdit: user?.universityId === r.studentId && r.status === 'pending' && !r.openedAt,
   queueEntryId: queue.find(q => q.requestId === r.id)?.id || null,
 });
-const queueOut = q => { const r = requests.find(x => x.id === q.requestId); return { ...q, student: ref(r.studentId), title: r.title }; };
+const queueOut = q => { const r = requests.find(x => x.id === q.requestId); return { ...q, student: ref(r.studentId), title: r.title, preferredStart: r.preferredStart, preferredEnd: r.preferredEnd }; };
 const meetingOut = m => {
   const r = requests.find(x => x.id === m.requestId);
-  return { ...m, title: r.title, student: ref(m.studentId), instructor: ref(m.instructorId), module: mod(slots.find(s => s.id === m.slotId).moduleId),
+  return { ...m, title: r.title, student: ref(m.studentId), instructor: ref(m.instructorId), module: mod(slots.find(s => s.id === m.slotId).moduleId), slotDate: slots.find(s => s.id === m.slotId).slotDate,
     durationMinutes: m.endedAt ? Math.round((new Date(m.endedAt) - new Date(m.startedAt)) / 60000) : null };
 };
 const notify = (recipientId, type, message, link) => notifications.unshift({ id: newId('n'), recipientId, type, message, link, isRead: false, createdAt: now() });
@@ -216,9 +228,21 @@ const routes = [
   ['POST', '/requests/faq-check', (p, q, b) => {
     const err = required(b, ['slotId', 'title', 'description']); if (err) return err;
     const s = slots.find(x => x.id === b.slotId); if (!s) return fail(404, 'NOT_FOUND', 'Slot not found');
+    // Fake AI: score = shared words. 2+ = answered, 1 = partly answered. Same response shape as the real Gemini check.
     const words = `${b.title} ${b.description}`.toLowerCase().split(/\W+/).filter(w => w.length > 3);
-    const hit = faqs.filter(f => f.instructorId === s.instructorId).map(f => ({ f, score: words.filter(w => f.question.toLowerCase().includes(w)).length })).sort((a, c) => c.score - a.score)[0];
-    return ok(hit?.score >= 2 ? { matched: true, faqId: hit.f.id, faqQuestion: hit.f.question, answer: hit.f.answer } : { matched: false, faqId: null, faqQuestion: null, answer: null });
+    const hits = faqs.filter(f => f.instructorId === s.instructorId).map(f => ({ f, score: words.filter(w => f.question.toLowerCase().includes(w)).length })).filter(h => h.score > 0).sort((a, c) => c.score - a.score);
+    const titleWords = b.title.trim().split(/\s+/);
+    const suggestedTitle = titleWords.length < 4 ? `${b.title.trim()}: ${b.description.trim().split(/\s+/).slice(0, 6).join(' ')}`.slice(0, 80) : null;
+    if (!hits.length) return ok({ matched: false, verdict: 'none', faqId: null, faqQuestion: null, answer: null, sources: [], stillWorthAsking: null, suggestedTitle });
+    const verdict = hits[0].score >= 2 ? 'answered' : 'partial';
+    const used = hits.slice(0, 2);
+    return ok({
+      matched: true, verdict, faqId: used[0].f.id, faqQuestion: used[0].f.question,
+      answer: used.map(h => h.f.answer).join(' '),
+      sources: used.map(h => ({ faqId: h.f.id, question: h.f.question })),
+      stillWorthAsking: verdict === 'partial' ? 'Ask about the parts of your setup that the FAQ does not mention.' : null,
+      suggestedTitle,
+    });
   }],
   ['GET', '/requests', (p, q, b, u) => {
     const list = requests.filter(r => (u.role === 'student' ? r.studentId === u.universityId : slots.find(s => s.id === r.slotId)?.instructorId === u.universityId)
@@ -268,16 +292,36 @@ const routes = [
     Object.assign(r, b, { updatedAt: now() }); return ok(requestOut(r, u));
   }],
   ['GET', '/faqs', (p, q, b, u) => ok(faqs.filter(f => f.instructorId === (q.instructorId || u.universityId) && (!q.q || f.question.toLowerCase().includes(q.q.toLowerCase()))))],
+  ['POST', '/faqs/suggest', (p, q, b, u) => {
+    // Fake AI: two fixed drafts, with real counts and titles from this instructor's mock requests
+    const mine = requests.filter(r => slots.find(s => s.id === r.slotId)?.instructorId === u.universityId);
+    if (mine.length < 2) return ok([], { analyzed: mine.length });
+    const idea = (rs, question, answer, moduleId) => ({ question, answer, moduleId, requestCount: rs.length, studentCount: new Set(rs.map(r => r.studentId)).size, exampleTitles: rs.slice(0, 3).map(r => r.title) });
+    return ok([
+      idea(mine.slice(0, 2), 'Why does API Gateway return 502 on Floci, and how do I fix it?', 'Most 502s come from a wrong Lambda handler name or a missing return value. Check the logs with [add the log command] and compare with the lab sheet at [add the link].', 1),
+      idea(mine.slice(-1), 'Which cloud service model should our project use?', 'Most projects fit [add the recommended model]. Justify your choice in the report section [add the section number].', null),
+    ], { analyzed: mine.length });
+  }],
   ['POST', '/faqs', (p, q, b, u) => { const err = required(b, ['question', 'answer']); if (err) return err; const f = { id: newId('faq'), instructorId: u.universityId, moduleId: null, ...b }; faqs.push(f); return ok(f, null, 201); }],
   ['PATCH', '/faqs/:id', (p, q, b) => { const f = faqs.find(x => x.id === p.id); if (!f) return fail(404, 'NOT_FOUND', 'FAQ not found'); Object.assign(f, b); return ok(f); }],
   ['DELETE', '/faqs/:id', (p) => { const i = faqs.findIndex(x => x.id === p.id); if (i < 0) return fail(404, 'NOT_FOUND', 'FAQ not found'); faqs.splice(i, 1); return { status: 204, json: null }; }],
 
-  ['GET', '/queue/position/:requestId', (p) => {
+  // ---- queue, check-in, meetings (same shapes and main rules as server/src/services/queue) ----
+  ['GET', '/queue/position/:requestId', (p, q, b, u) => {
     const e = queue.find(x => x.requestId === p.requestId); if (!e) return fail(404, 'NOT_FOUND', 'This request is not in a queue yet');
-    const ahead = queue.filter(x => x.slotId === e.slotId && ['waiting', 'in_meeting'].includes(x.status) && x.position < e.position).length;
-    return ok({ status: e.status, ahead, estimatedWaitMinutes: ahead * 15, checkedIn: !!e.checkedInAt });
+    const r = requests.find(x => x.id === e.requestId); if (r.studentId !== u.universityId) return fail(403, 'FORBIDDEN', 'This is not your request');
+    const s = slots.find(x => x.id === e.slotId);
+    const ahead = e.status === 'waiting' ? queue.filter(x => x.slotId === e.slotId && ['waiting', 'in_meeting'].includes(x.status) && x.position < e.position).length : 0;
+    return ok({ status: e.status, ahead, estimatedWaitMinutes: ahead * 15, checkedIn: !!e.checkedInAt, position: e.position, title: r.title, calledAt: e.calledAt,
+      slot: { id: s.id, slotDate: s.slotDate, startTime: s.startTime, endTime: s.endTime, location: s.location, status: s.status, instructor: ref(s.instructorId), module: mod(s.moduleId) } });
   }],
-  ['GET', '/queue/slots/:slotId', (p) => ok(queue.filter(x => x.slotId === p.slotId).sort((a, c) => a.position - c.position).map(queueOut))],
+  ['GET', '/queue/slots/:slotId', (p, q, b, u) => {
+    const s = slots.find(x => x.id === p.slotId); if (!s) return fail(404, 'NOT_FOUND', 'Slot not found');
+    if (s.instructorId !== u.universityId) return fail(403, 'FORBIDDEN', 'This is not your slot');
+    const list = queue.filter(x => x.slotId === p.slotId).sort((a, c) => a.position - c.position).map(queueOut);
+    return ok(list, { slot: { id: s.id, slotDate: s.slotDate, startTime: s.startTime, endTime: s.endTime, location: s.location, status: s.status,
+      instructor: ref(s.instructorId), module: mod(s.moduleId), isToday: true } }); // mock treats every slot as today so the demo works any day
+  }],
   ['POST', '/queue/slots/:slotId/next', (p) => {
     const list = queue.filter(x => x.slotId === p.slotId).sort((a, c) => a.position - c.position);
     const current = list.find(x => x.status === 'in_meeting');
@@ -304,13 +348,15 @@ const routes = [
   ['GET', '/check-in/:token', (p) => {
     const e = queue.find(x => x.qrToken === p.token); if (!e) return fail(404, 'NOT_FOUND', 'This QR code is not valid');
     const r = requests.find(x => x.id === e.requestId), s = slots.find(x => x.id === e.slotId);
-    return ok({ studentName: person(r.studentId).fullName, instructorName: person(s.instructorId).fullName, slotDate: s.slotDate, startTime: r.preferredStart, location: s.location, position: e.position, checkedInAt: e.checkedInAt });
+    return ok({ studentName: person(r.studentId).fullName, instructorName: person(s.instructorId).fullName, title: r.title, module: mod(s.moduleId), slotDate: s.slotDate, startTime: r.preferredStart, location: s.location, position: e.position, status: e.status, checkedInAt: e.checkedInAt, isMeetingDay: s.slotDate === iso(new Date()) });
   }],
-  ['POST', '/check-in/:token', (p) => {
+  ['POST', '/check-in/:token', (p) => { // same checks, same order as logic.js checkIn
     const e = queue.find(x => x.qrToken === p.token); if (!e) return fail(404, 'NOT_FOUND', 'This QR code is not valid');
+    const s = slots.find(x => x.id === e.slotId);
+    if (['done', 'skipped'].includes(e.status)) return fail(409, 'ENTRY_FINISHED', 'This meeting is already finished or cancelled');
+    if (s.slotDate !== iso(new Date())) return fail(409, 'NOT_MEETING_DAY', `This ticket only works on the meeting day (${s.slotDate})`);
     if (e.checkedInAt) return fail(409, 'ALREADY_CHECKED_IN', 'You are already checked in');
-    if (['done', 'skipped'].includes(e.status)) return fail(409, 'ENTRY_FINISHED', 'This meeting is already finished');
-    e.checkedInAt = now(); // mock skips the "only on the meeting day" rule so the demo works any day
+    e.checkedInAt = now();
     return ok({ checkedInAt: e.checkedInAt, ahead: queue.filter(x => x.slotId === e.slotId && x.status === 'waiting' && x.position < e.position).length });
   }],
   ['GET', '/meetings', (p, q, b, u) => page(meetings.filter(m => m[`${u.role}Id`] === u.universityId).map(meetingOut)

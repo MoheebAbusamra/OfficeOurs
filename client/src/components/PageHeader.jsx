@@ -1,4 +1,4 @@
-// [Shared] Consistent page title block: small hand-written eyebrow, big title, optional description and actions
+// Consistent page title block: small hand-written eyebrow, big title, optional description and actions
 export default function PageHeader({ eyebrow, title, description, children }) {
   return (
     <div className="page-head">

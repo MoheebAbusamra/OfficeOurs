@@ -4,22 +4,23 @@ import { homeFor, useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Layout from '@/components/Layout';
 
-// S1 Scheduling
+// Scheduling
 import Login from '@/pages/scheduling/Login';
 import Register from '@/pages/scheduling/Register';
 import BrowseSlots from '@/pages/scheduling/BrowseSlots';
 import ManageSlots from '@/pages/scheduling/ManageSlots';
 import Dashboard from '@/pages/scheduling/Dashboard';
-// S2 Requests
+// Requests
 import NewRequest from '@/pages/requests/NewRequest';
 import MyRequests from '@/pages/requests/MyRequests';
 import Inbox from '@/pages/requests/Inbox';
 import Faqs from '@/pages/requests/Faqs';
-// S3 Queue
+// Queue
 import StudentQueue from '@/pages/queue/StudentQueue';
 import InstructorQueue from '@/pages/queue/InstructorQueue';
 import History from '@/pages/queue/History';
 import CheckIn from '@/pages/queue/CheckIn';
+import NotFound from '@/pages/NotFound';
 
 function Home() {
   const { user, loading } = useAuth();
@@ -55,7 +56,7 @@ export default function App() {
         <Route path="/instructor/history" element={<History />} />
       </Route>
 
-      <Route path="*" element={<Home />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

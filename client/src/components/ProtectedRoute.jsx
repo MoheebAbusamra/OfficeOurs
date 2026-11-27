@@ -1,4 +1,4 @@
-// [S1] Blocks pages unless logged in with the right role
+// Blocks pages unless logged in with the right role
 import { Navigate, useLocation } from 'react-router-dom';
 import { homeFor, useAuth } from '@/context/AuthContext';
 

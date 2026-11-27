@@ -1,4 +1,4 @@
-// [S2] Holds the logged-in user, role and the token returned by the backend /auth/login (session storage, #B)
+// Holds the logged-in user, role and the token returned by the backend /auth/login (session storage, #B)
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import * as authApi from '@/api/auth';
 import { tokenStore } from '@/api/http';
@@ -19,7 +19,8 @@ export default function AuthProvider({ children }) {
     if (!tokenStore.get()) return;
     authApi.getMe()
       .then(res => setUser(res.data))
-      .catch(clear)
+      // Only a rejected token logs out; if the server is unreachable the token is kept for when it is back
+      .catch(err => { if (err.status !== 0 && err.status < 500) clear(); })
       .finally(() => setLoading(false));
   }, [clear]);
 

@@ -1,4 +1,4 @@
-// [S2] Shared success/error message box used by every page
+// Shared success/error message box used by every page
 import { CircleAlert, CircleCheck, Info, X } from 'lucide-react';
 
 const ICONS = { success: CircleCheck, error: CircleAlert, info: Info };

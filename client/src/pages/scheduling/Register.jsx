@@ -1,4 +1,4 @@
-// [S1] Register: Student enters university ID; group, modules and schedule are filled in automatically from seed data
+// Register: Student enters university ID; group, modules and schedule are filled in automatically from seed data
 import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { ArrowRight, Check } from 'lucide-react';
