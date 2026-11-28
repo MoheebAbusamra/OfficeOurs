@@ -241,37 +241,13 @@ Open `http://localhost:4566/officeours-web/index.html`. Floci keeps everything a
 `vercel.json` already sets the install, the build, the output folder and the routing (`/api/*` to the Express function, everything else to `index.html`).
 
 1. On vercel.com: **Add New > Project**, import this repo, framework preset **Other**, root directory `./`.
-2. Add the environment variables marked "Vercel" below. Leave out every `AWS_*`, `SNS_*`, `SQS_*` and `S3_*` variable.
+2. Add their own environmental variables.
 3. Deploy, then set `CLIENT_URL` and `CHECKIN_BASE_URL` to the Vercel address and redeploy.
 4. Check that `/api/v1/health` returns `{"data":{"status":"ok"}}`.
 
 Every push to `main` redeploys automatically.
 </details>
 
-<details>
-<summary><b>Environment variables</b></summary>
-<br>
-
-**Server (`server/.env`)**
-
-| Variable | Purpose | Local | Floci | Vercel |
-|---|---|:-:|:-:|:-:|
-| `SUPABASE_URL`, `SUPABASE_SECRET_KEY` | Database and auth (server only) | yes | yes | yes |
-| `GEMINI_API_KEY`, `GEMINI_MODEL` | AI FAQ check and FAQ ideas | yes | yes | yes |
-| `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME` | QR ticket email | yes | yes | yes |
-| `CALENDARIFIC_API_KEY` | Egypt public holidays | yes | yes | yes |
-| `APP_TIMEZONE` | `Africa/Cairo` | yes | yes | yes |
-| `CLIENT_URL` | Frontend address(es) allowed by CORS | yes | yes | yes |
-| `CHECKIN_BASE_URL` | Address the QR code opens | optional | set by `deploy:floci` | yes |
-| `PORT` | Local server port (3000) | yes | | |
-| `AWS_ENDPOINT_URL`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Floci connection | | yes | |
-| `S3_BUCKET`, `SQS_QUEUE_URL`, `QUEUE_LAMBDA_NAME`, `SES_SENDER_EMAIL`, `SNS_TOPIC_ARN`, `AI_LOG_BUCKET` | Floci resources | | yes | |
-| `TEST_PASSWORD`, `TEST_STUDENT_ID`, `TEST_STUDENT_PASSWORD` | Jest tests | tests | | |
-
-**Client (`client/.env`)**: `VITE_API_URL` (set automatically on Floci and Vercel). `VITE_ROUTER` and `VITE_BASE` are set by `deploy:floci` for the S3 build.
-
-Keys only ever live in environment variables. `.env` files are git-ignored.
-</details>
 
 <p align="center"><img src="docs/readme/divider.svg" alt="" width="100%"></p>
 
