@@ -20,13 +20,33 @@ export const todayLocal = (date = new Date()) =>
 const hhmm = t => (t ? String(t).slice(0, 5) : null);
 const person = p => (p ? { universityId: p.university_id, fullName: p.full_name } : null);
 
-// DB row -> API QueueEntry (instructor view, has the student's name)
-export function entryOut(e) {
+// ---------------- Queue order ----------------
+// The line follows the booked start times (16:00 before 16:20), not the order the instructor clicked "confirm".
+// Same start time (older data) -> whoever was confirmed first. The number shown on screens is the place in this order.
+const startOf = e => String(e.request?.preferred_start || '');
+const byStartTime = (a, b) => startOf(a).localeCompare(startOf(b)) || a.position - b.position;
+
+// All entries of a slot, in queue order
+async function orderedEntries(slotId) {
+  return [...(await db.listSlotEntries(slotId))].sort(byStartTime);
+}
+
+// Place in line (1 = first) and how many are still in front of a waiting student:
+// whoever is in a meeting right now, plus everyone waiting with an earlier time
+function placeIn(entries, entry) {
+  const index = entries.findIndex(e => e.id === entry.id);
+  const ahead = entry.status !== 'waiting' ? 0 : entries.filter((e, i) => e.id !== entry.id
+    && (e.status === 'in_meeting' || (e.status === 'waiting' && i < index))).length;
+  return { place: index + 1, ahead };
+}
+
+// DB row -> API QueueEntry (instructor view, has the student's name). place = the place in the time-ordered line
+export function entryOut(e, place = e?.position) {
   if (!e) return null;
   return {
     id: e.id,
     requestId: e.request_id,
-    position: e.position,
+    position: place,
     status: e.status,
     student: person(e.request?.student),
     title: e.request?.title ?? null,
@@ -112,7 +132,7 @@ export async function getPosition(user, requestId) {
   if (entry.request?.student_id !== user.universityId) throw forbidden('This is not your request');
 
   const slot = await db.getSlot(entry.slot_id);
-  const ahead = entry.status === 'waiting' ? await db.countAhead(entry.slot_id, entry.position) : 0;
+  const { place, ahead } = placeIn(await orderedEntries(entry.slot_id), entry);
   const perMeeting = ahead ? await averageMeetingMinutes(slot.instructor_id) : DEFAULT_MEETING_MINUTES;
 
   // Only counts, never other students' names
@@ -121,7 +141,7 @@ export async function getPosition(user, requestId) {
     ahead,
     estimatedWaitMinutes: ahead * perMeeting,
     checkedIn: Boolean(entry.checked_in_at),
-    position: entry.position,
+    position: place,
     title: entry.request.title,
     calledAt: entry.called_at,
     slot: slot ? slotOut(slot) : null,
@@ -131,8 +151,8 @@ export async function getPosition(user, requestId) {
 // ---------------- #11 Instructor queue ----------------
 export async function getSlotQueue(user, slotId) {
   const slot = await ownedSlot(user, slotId);
-  const entries = await db.listSlotEntries(slotId);
-  return { entries: entries.map(entryOut), slot: { ...slotOut(slot), isToday: slot.slot_date === todayLocal() } };
+  const entries = await orderedEntries(slotId);
+  return { entries: entries.map((e, i) => entryOut(e, i + 1)), slot: { ...slotOut(slot), isToday: slot.slot_date === todayLocal() } };
 }
 
 // Finish the current meeting (if any) and call the next waiting student
@@ -143,9 +163,10 @@ export async function callNext(user, slotId) {
     throw conflict('SLOT_NOT_TODAY', `You can only run this queue on the slot day (${slot.slot_date})`);
   }
 
-  const entries = await db.listSlotEntries(slotId);
+  const entries = await orderedEntries(slotId);
+  const placeOf = e => (e ? entries.findIndex(x => x.id === e.id) + 1 : undefined);
   const current = entries.find(e => e.status === 'in_meeting');
-  const next = entries.find(e => e.status === 'waiting'); // already sorted by position
+  const next = entries.find(e => e.status === 'waiting'); // the earliest booked time still waiting
   if (!current && !next) throw conflict('QUEUE_EMPTY', 'Nobody is waiting in this queue');
 
   const finished = current ? await finishEntry(current, slot) : null;
@@ -160,7 +181,7 @@ export async function callNext(user, slotId) {
   }
 
   const remaining = entries.filter(e => e.status === 'waiting' && e.id !== next?.id).length;
-  return { finished: entryOut(finished), current: entryOut(called), remaining };
+  return { finished: entryOut(finished, placeOf(finished)), current: entryOut(called, placeOf(called)), remaining };
 }
 
 // Skip a student who is not present (waiting or already called)
@@ -176,7 +197,7 @@ export async function skipEntry(user, entryId, reason) {
   await notify(entry.request.student_id, 'request_updated',
     `You were skipped in the queue for "${entry.request.title}" on ${slot.slot_date}.${reason ? ` Reason: ${reason}` : ''}`,
     `/student/queue/${entry.request_id}`);
-  return entryOut(skipped);
+  return entryOut(skipped, placeIn(await orderedEntries(entry.slot_id), skipped).place);
 }
 
 // Close the queue: the current meeting is finished, everyone still waiting is skipped and notified
@@ -221,7 +242,7 @@ export async function getCheckIn(token) {
     slotDate: slot.slot_date,
     startTime: hhmm(entry.request?.preferred_start || slot.start_time),
     location: slot.location,
-    position: entry.position,
+    position: placeIn(await orderedEntries(entry.slot_id), entry).place,
     status: entry.status,
     checkedInAt: entry.checked_in_at,
     isMeetingDay: slot.slot_date === todayLocal(),
@@ -241,7 +262,7 @@ export async function checkIn(token) {
 
   const row = await db.markCheckedIn(entry.id, nowIso());
   if (!row) throw conflict('ALREADY_CHECKED_IN', 'You are already checked in');
-  const ahead = entry.status === 'waiting' ? await db.countAhead(entry.slot_id, entry.position) : 0;
+  const { ahead } = placeIn(await orderedEntries(entry.slot_id), entry);
   return { checkedInAt: row.checked_in_at, ahead };
 }
 
@@ -316,8 +337,8 @@ export async function sendTicket(entry, request) {
     title: request.title,
     slotDate: slot.slot_date,
     startTime: hhmm(request.preferred_start),
+    endTime: hhmm(request.preferred_end),
     location: slot.location,
-    position: entry.position,
     token: entry.qr_token,
   };
   const { subject, html, text } = buildTicketEmail(ticket);
@@ -342,7 +363,8 @@ export async function sendTicket(entry, request) {
 export async function processRequestConfirmed(requestId) {
   const { entry, request, created } = await addToQueue(requestId);
   const delivery = created ? await sendTicket(entry, request) : null;
-  return { requestId, queueEntryId: entry.id, position: entry.position, created, to: request.student?.email, delivery };
+  const { place } = placeIn(await orderedEntries(entry.slot_id), entry);
+  return { requestId, queueEntryId: entry.id, position: place, created, to: request.student?.email, delivery };
 }
 
 // When a confirmed request is cancelled, its queue entry is taken out of the line

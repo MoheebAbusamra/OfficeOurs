@@ -8,8 +8,8 @@ import { CreateQueueCommand, GetQueueAttributesCommand, SetQueueAttributesComman
 import { CreateTopicCommand, SNSClient, SubscribeCommand } from '@aws-sdk/client-sns';
 import { SESClient, VerifyEmailIdentityCommand } from '@aws-sdk/client-ses';
 import {
-  CreateFunctionCommand, GetFunctionCommand, LambdaClient, UpdateFunctionCodeCommand, UpdateFunctionConfigurationCommand,
-  waitUntilFunctionUpdated,
+  CreateEventSourceMappingCommand, CreateFunctionCommand, GetFunctionCommand, LambdaClient, ListEventSourceMappingsCommand,
+  UpdateEventSourceMappingCommand, UpdateFunctionCodeCommand, UpdateFunctionConfigurationCommand, waitUntilFunctionUpdated,
 } from '@aws-sdk/client-lambda';
 import { packageLambda } from './package-lambda.mjs';
 // The scheduling service's setup. Its code stays in its own folder, it is only called below.
@@ -129,6 +129,23 @@ async function worker() {
   step(`Lambda ${exists ? 'updated' : 'created'}`, LAMBDA);
 }
 
+// SQS -> Lambda trigger: Floci hands every new "request confirmed" message to the worker Lambda by itself,
+// the same way AWS does, so the queue works with only Floci running (no local poller needed).
+// The Lambda reports failed messages one by one, so only those are retried (then moved to the dead-letter queue).
+async function trigger(queueArn) {
+  const settings = { Enabled: true, BatchSize: 5, FunctionResponseTypes: ['ReportBatchItemFailures'] };
+  const { EventSourceMappings = [] } = await lambda.send(
+    new ListEventSourceMappingsCommand({ FunctionName: LAMBDA, EventSourceArn: queueArn }),
+  );
+  const existing = EventSourceMappings.find(m => m.EventSourceArn === queueArn && String(m.FunctionArn).endsWith(`:${LAMBDA}`));
+  if (existing) {
+    await lambda.send(new UpdateEventSourceMappingCommand({ UUID: existing.UUID, FunctionName: LAMBDA, ...settings }));
+  } else {
+    await lambda.send(new CreateEventSourceMappingCommand({ FunctionName: LAMBDA, EventSourceArn: queueArn, ...settings }));
+  }
+  step(`SQS -> Lambda trigger ${existing ? 'updated' : 'created'}`, `${QUEUE} -> ${LAMBDA}`);
+}
+
 try {
   console.log(`Setting up S3 (Queue, QR & History) resources on ${config.endpoint}`);
   await bucket();
@@ -136,6 +153,7 @@ try {
   const topicArn = await topic(queueArn, queueUrl);
   await sesIdentity();
   await worker();
+  await trigger(queueArn);
     // Also create the scheduling service's resources (DynamoDB, IAM, Lambda, EventBridge, API Gateway) in the same Floci,
   // so the whole group needs only this one command (PROJECT_CONTEXT section 10: "one setup script").
   await setupS1();

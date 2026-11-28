@@ -86,7 +86,6 @@ const fakeDb = {
     e.checked_in_at = at;
     return { id, checked_in_at: at };
   },
-  countAhead: async (slotId, position) => entries.filter(e => e.slot_id === slotId && ['waiting', 'in_meeting'].includes(e.status) && e.position < position).length,
   insertMeeting: async row => {
     if (meetings.some(m => m.request_id === row.request_id)) return null;
     const m = { id: randomUUID(), instructor_notes: null, student_notes: null, ...row };
@@ -416,5 +415,38 @@ describe('#4 Meeting history and notes', () => {
     const res = await request(app).patch(`/api/v1/meetings/${m.id}/notes`).set(as('S1')).set('Content-Type', 'application/json').send('{bad');
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('INVALID_JSON');
+  });
+});
+
+// =====================================================================
+describe('Queue order follows the booked times', () => {
+  const at = (studentId, start, end) => Object.assign(addRequest(studentId, slots[0]), { preferred_start: `${start}:00`, preferred_end: `${end}:00` });
+
+  test('Q-50 confirmed later but booked earlier goes first: list, place, ahead and the email follow the time', async () => {
+    const late = at('S1', '16:20', '16:40');
+    const early = at('S2', '16:00', '16:20');
+    expect((await handleMessageBody(confirmedEvent(late.id))).position).toBe(1);
+    expect((await handleMessageBody(confirmedEvent(early.id))).position).toBe(1);
+    expect(sent.brevo[1].text).toContain('Your time: 16:00 to 16:20');
+    expect(sent.brevo[1].text).not.toMatch(/Queue position/);
+
+    const list = await request(app).get(`/api/v1/queue/slots/${slots[0].id}`).set(as('I1'));
+    expect(list.body.data.map(e => [e.student.fullName, e.position, e.preferredStart]))
+      .toEqual([['Moheeb Abusamra', 1, '16:00'], ['Judy Tarek', 2, '16:20']]);
+
+    const mine = await request(app).get(`/api/v1/queue/position/${late.id}`).set(as('S1'));
+    expect(mine.body.data).toMatchObject({ position: 2, ahead: 1 });
+  });
+
+  test('Q-51 call next calls the earliest booked time; the student in the meeting still counts as ahead', async () => {
+    const late = at('S1', '16:20', '16:40');
+    const early = at('S2', '16:00', '16:20');
+    addEntry(late, 1);
+    const first = addEntry(early, 2);
+    const res = await request(app).post(`/api/v1/queue/slots/${slots[0].id}/next`).set(as('I1'));
+    expect(res.status).toBe(200);
+    expect(res.body.data.current).toMatchObject({ id: first.id, status: 'in_meeting', position: 1 });
+    const mine = await request(app).get(`/api/v1/queue/position/${late.id}`).set(as('S1'));
+    expect(mine.body.data).toMatchObject({ status: 'waiting', position: 2, ahead: 1 });
   });
 });

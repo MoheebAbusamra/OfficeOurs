@@ -192,14 +192,18 @@
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
                   "const today = new Date().toLocaleDateString('en-CA');",
                   "const busy = JSON.parse(pm.collectionVariables.get('busySlots') || '[]');",
-                  "const slot = pm.response.json().data.find(s => !s.isFull && s.status === 'active' && s.slotDate > today && !busy.includes(s.id));",
-                  "pm.test('Found a bookable slot', () => pm.expect(slot).to.not.be.undefined);",
                   "const plus = (t, m) => { const x = +t.slice(0, 2) * 60 + +t.slice(3, 5) + m; return String(Math.floor(x / 60)).padStart(2, '0') + ':' + String(x % 60).padStart(2, '0'); };",
+                  "// The first 10 minutes must not be booked by a confirmed student already (takenWindows)",
+                  "const freeStart = s => (s.takenWindows || []).every(w => w.end <= s.startTime || w.start >= plus(s.startTime, 10));",
+                  "const slot = pm.response.json().data.find(s => !s.isFull && s.status === 'active' && s.slotDate > today && !busy.includes(s.id) && freeStart(s));",
+                  "pm.test('Found a bookable slot', () => pm.expect(slot).to.not.be.undefined);",
                   "pm.collectionVariables.set('slotId', slot.id);",
                   "pm.collectionVariables.set('winStart', slot.startTime);",
                   "pm.collectionVariables.set('winEnd', plus(slot.startTime, 10));",
                   "pm.collectionVariables.set('outStart', slot.endTime);",
-                  "pm.collectionVariables.set('outEnd', plus(slot.endTime, 15));"
+                  "pm.collectionVariables.set('outEnd', plus(slot.endTime, 15));",
+                  "pm.collectionVariables.set('clashStart', plus(slot.startTime, 5));",
+                  "pm.collectionVariables.set('clashEnd', plus(slot.startTime, 15));"
                 ]
               }
             }
@@ -822,6 +826,73 @@
           ]
         },
         {
+          "name": "Slot shows the confirmed time as taken",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{studentToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/slots/{{slotId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const w = pm.response.json().data.takenWindows;",
+                  "pm.test('takenWindows has our time, without names', () => {",
+                  "  pm.expect(w).to.deep.include({ start: pm.collectionVariables.get('winStart'), end: pm.collectionVariables.get('winEnd') });",
+                  "  pm.expect(JSON.stringify(w)).to.not.match(/Judy|24\\d{4}/);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Overlapping time -> 409 TIME_TAKEN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{studentToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/requests",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slotId\": \"{{slotId}}\",\n  \"title\": \"Postman S2 test {{runTag}}\",\n  \"description\": \"Written by the Postman collection. It is cancelled at the end.\",\n  \"preferredStart\": \"{{clashStart}}\",\n  \"preferredEnd\": \"{{clashEnd}}\",\n  \"priority\": \"high\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Error code is TIME_TAKEN', () => pm.expect(pm.response.json().error.code).to.eql('TIME_TAKEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Confirm again -> 409 INVALID_TRANSITION",
           "request": {
             "method": "PATCH",
@@ -1240,6 +1311,14 @@
     },
     {
       "key": "notificationId",
+      "value": ""
+    },
+    {
+      "key": "clashStart",
+      "value": ""
+    },
+    {
+      "key": "clashEnd",
       "value": ""
     }
   ]

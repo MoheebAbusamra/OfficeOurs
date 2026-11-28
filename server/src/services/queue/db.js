@@ -44,7 +44,8 @@ export const getEntryByToken = async token =>
 export const listSlotEntries = async slotId =>
   unwrap(await supabase.from('queue_entries').select(ENTRY_COLS).eq('slot_id', slotId).order('position'));
 
-// Highest position used in a slot (0 if empty); the next student gets this + 1
+// Highest ticket number used in a slot (0 if empty); the next student gets this + 1.
+// The line itself is ordered by booked time in logic.js, this number only breaks ties and keeps entries unique.
 export async function maxPosition(slotId) {
   const rows = unwrap(await supabase.from('queue_entries').select('position').eq('slot_id', slotId)
     .order('position', { ascending: false }).limit(1));
@@ -65,14 +66,6 @@ export const updateEntryIfStatus = async (id, fromStatuses, patch) =>
 export const markCheckedIn = async (id, at) =>
   unwrap(await supabase.from('queue_entries').update({ checked_in_at: at }).eq('id', id).is('checked_in_at', null)
     .select('id, checked_in_at').maybeSingle());
-
-// Students still in front: waiting or in a meeting with a smaller position
-export async function countAhead(slotId, position) {
-  const { count, error } = await supabase.from('queue_entries').select('id', { count: 'exact', head: true })
-    .eq('slot_id', slotId).in('status', ['waiting', 'in_meeting']).lt('position', position);
-  if (error) throw new Error(`Database error: ${error.message}`);
-  return count || 0;
-}
 
 // ---------------- Meetings (history) ----------------
 export async function insertMeeting(row) {

@@ -219,6 +219,26 @@ function checkWindowInsideSlot(start, end, slotStart, slotEnd) {
   }
 }
 
+// Confirmed requests -> their time windows, e.g. [{ start: '16:00', end: '16:20' }]
+function windowsOf(confirmedRows) {
+  return confirmedRows.map((r) => ({ id: r.id, start: hhmm(r.preferred_start), end: hhmm(r.preferred_end) }));
+}
+
+// The first taken window that overlaps start-end, or null.
+// Two windows overlap when each one starts before the other ends: 16:00-16:20 and 16:15-16:30 do,
+// 16:00-16:20 and 16:20-16:40 do not (one ends exactly when the next starts).
+function findClash(start, end, taken) {
+  return taken.find((w) => w.start < end && start < w.end) || null;
+}
+
+// Students: the window must not overlap a time another student already has confirmed
+function checkWindowFree(start, end, taken) {
+  const clash = findClash(start, end, taken);
+  if (clash) {
+    throw new AppError(409, 'TIME_TAKEN', `${clash.start} to ${clash.end} is already booked. Please pick another time`);
+  }
+}
+
 // GET /requests: student = my requests, instructor = requests on my slots (inbox)
 export async function listRequests(user, query) {
   const page = Number(query.page || 1);
@@ -295,8 +315,9 @@ export async function createRequest(user, body) {
     throw new AppError(403, 'FORBIDDEN', 'This slot is not open to your modules');
   }
 
-  // 4. The window fits the slot, and a seat is still free
+  // 4. The window fits the slot, is not already booked by someone else, and a seat is still free
   checkWindowInsideSlot(body.preferredStart, body.preferredEnd, slot.startTime, slot.endTime);
+  checkWindowFree(body.preferredStart, body.preferredEnd, slot.takenWindows || []);
   if (slot.isFull) {
     throw new AppError(409, 'SLOT_FULL', 'This slot is full');
   }
@@ -349,6 +370,7 @@ export async function updateRequest(user, id, body) {
     ]);
   }
   checkWindowInsideSlot(start, end, hhmm(row.slots.start_time), hhmm(row.slots.end_time));
+  checkWindowFree(start, end, windowsOf(await db.findConfirmedRequests([row.slot_id])));
 
   const changes = { preferred_start: start, preferred_end: end };
   if (body.title !== undefined) changes.title = body.title.trim();
@@ -395,6 +417,13 @@ export async function changeStatus(user, id, body) {
     const confirmed = await db.findConfirmedRequests([slot.id]);
     if (confirmed.length >= slot.capacity) {
       throw new AppError(409, 'SLOT_FULL', 'This slot is already full');
+    }
+    // Two students asked for overlapping times: only the first one confirmed keeps it
+    const others = windowsOf(confirmed).filter((w) => w.id !== row.id);
+    const clash = findClash(hhmm(row.preferred_start), hhmm(row.preferred_end), others);
+    if (clash) {
+      throw new AppError(409, 'TIME_TAKEN',
+        `You already confirmed another student for ${clash.start} to ${clash.end}. Reject this request or ask the student to pick another time`);
     }
   }
 

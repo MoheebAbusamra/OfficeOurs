@@ -5,6 +5,7 @@ import {
   Ban, CalendarClock, CheckCheck, ChevronDown, Eye, EyeOff, Flame, ListOrdered, Pencil, Plus, RefreshCw, Search, Sparkles, X,
 } from 'lucide-react';
 import { getRequests, setRequestStatus, updateRequest } from '@/api/requests';
+import { getSlot } from '@/api/scheduling';
 import PageHeader from '@/components/PageHeader';
 import Alert from '@/components/Alert';
 import Dialog from './Dialog';
@@ -12,7 +13,7 @@ import CountedField from './CountedField';
 import ThinkingStudent from './ThinkingStudent';
 import StatusTabs from './StatusTabs';
 import TimeWindowPicker from './TimeWindowPicker';
-import { fitDuration, parseDate, toMin, toTime } from './time';
+import { fitDuration, parseDate, takenOf, toMin, toTime } from './time';
 import './requests.css';
 
 const REFRESH_MS = 20000;
@@ -206,6 +207,10 @@ export default function MyRequests() {
   // ----- Edit -----
   const openEdit = r => {
     setEditing(r);
+    // Load the times other students already have, so the picker can show them as booked
+    getSlot(r.slot.id)
+      .then(res => setEditing(cur => (cur?.id === r.id ? { ...cur, slot: { ...cur.slot, takenWindows: res.data.takenWindows } } : cur)))
+      .catch(() => {});
     setForm({ title: r.title, description: r.description, priority: r.priority, start: r.preferredStart.slice(0, 5), duration: minutes(r) });
     setErrors({});
   };
@@ -231,6 +236,7 @@ export default function MyRequests() {
       load();
     } catch (err) {
       if (err.code === 'REQUEST_LOCKED') { setEditing(null); notify('error', err.message); load(); }
+      else if (err.code === 'TIME_TAKEN') { setErrors({ preferredStart: err.message }); notify('error', err.message); }
       else { setErrors(Object.fromEntries((err.details || []).map(d => [d.field, d.issue]))); notify('error', err.message); }
     } finally {
       setSaving(false);
@@ -334,7 +340,7 @@ export default function MyRequests() {
             <CountedField id="er-title" label="Title" value={form.title} onChange={setField('title')} error={errors.title} max={LIMITS.title[1]} autoFocus />
             <CountedField id="er-description" label="Details" value={form.description} onChange={setField('description')} error={errors.description} max={LIMITS.description[1]} multiline />
             <TimeWindowPicker slot={editing.slot} start={form.start} duration={form.duration}
-              onStart={start => setForm({ ...form, start, duration: fitDuration(editing.slot.endTime, start, form.duration) })}
+              onStart={start => setForm({ ...form, start, duration: fitDuration(editing.slot.endTime, start, form.duration, takenOf(editing.slot)) })}
               onDuration={d => setForm({ ...form, duration: d })} error={errors.preferredStart || errors.preferredEnd} />
             <fieldset className="plain-fieldset">
               <legend className="label">Priority</legend>

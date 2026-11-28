@@ -86,6 +86,17 @@ function toSlotResponse(row, confirmedCount, schedule) {
   };
 }
  
+// Times already booked by confirmed students (only the times, never the names), sorted,
+// so the time picker can grey them out, e.g. [{ start: '16:00', end: '16:20' }]
+function toTakenWindows(confirmedRows) {
+  const windows = [];
+  for (const r of confirmedRows) {
+    windows.push({ start: r.preferred_start.slice(0, 5), end: r.preferred_end.slice(0, 5) });
+  }
+  windows.sort((a, b) => a.start.localeCompare(b.start));
+  return windows;
+}
+
 // GET /slots
 export async function listSlots(user, query) {
   // Today as "YYYY-MM-DD" in the server's local time ("en-CA" happens to use that format)
@@ -161,21 +172,24 @@ export async function listSlots(user, query) {
     rows = kept;
   }
  
-  // 4. Count the confirmed requests of each slot: { "slot-id": 2, ... }
+  // 4. Count the confirmed requests of each slot: { "slot-id": 2, ... }, and keep their times: { "slot-id": [rows] }
   const counts = {};
+  const confirmedOf = {};
   if (rows.length > 0) {
     const slotIds = [];
     for (const row of rows) slotIds.push(row.id);
     const confirmed = await db.findConfirmedRequests(slotIds);
     for (const r of confirmed) {
       counts[r.slot_id] = (counts[r.slot_id] || 0) + 1;
+      if (!confirmedOf[r.slot_id]) confirmedOf[r.slot_id] = [];
+      confirmedOf[r.slot_id].push(r);
     }
   }
  
   // 5. Shape every slot like openapi.yaml
   const slots = [];
   for (const row of rows) {
-    slots.push(toSlotResponse(row, counts[row.id] || 0, schedule));
+    slots.push({ ...toSlotResponse(row, counts[row.id] || 0, schedule), takenWindows: toTakenWindows(confirmedOf[row.id] || []) });
   }
  
   // 6. Slots that clash with a class go last. The database already sorted by date and time,
@@ -206,7 +220,7 @@ export async function getSlot(user, id) {
     schedule = await db.findSchedule(user.groupId);
   }
  
-  return toSlotResponse(row, confirmed.length, schedule);
+  return { ...toSlotResponse(row, confirmed.length, schedule), takenWindows: toTakenWindows(confirmed) };
 }
  
 // POST /slots (instructors only, checked in routes.js)

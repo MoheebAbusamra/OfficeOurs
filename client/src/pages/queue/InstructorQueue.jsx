@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
-  ArrowLeft, CalendarDays, CheckCircle2, CircleSlash, DoorOpen, ListOrdered, MapPin, RefreshCw, SkipForward, Square, UserRound,
+  ArrowLeft, CalendarClock, CalendarDays, CheckCircle2, CircleSlash, DoorOpen, ListOrdered, MapPin, RefreshCw, SkipForward, Square, UserRound,
 } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import Alert from '@/components/Alert';
@@ -174,6 +174,7 @@ export default function InstructorQueue() {
                     <p>{current.title}</p>
                     <div className="q-meta">
                       <span><UserRound size={16} aria-hidden="true" /> #{current.position}</span>
+                      {current.preferredStart && <span><CalendarClock size={16} aria-hidden="true" /> Booked {current.preferredStart} to {current.preferredEnd}</span>}
                       <span>Called at {clock(current.calledAt)}</span>
                     </div>
                     {current.calledAt && <Timer since={current.calledAt} />}

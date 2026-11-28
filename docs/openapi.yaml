@@ -386,7 +386,7 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '409': { description: 'SLOT_FULL, SLOT_NOT_ACTIVE, WINDOW_OUTSIDE_SLOT, DUPLICATE_REQUEST', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: 'SLOT_FULL, SLOT_NOT_ACTIVE, WINDOW_OUTSIDE_SLOT, TIME_TAKEN (overlaps a confirmed time), DUPLICATE_REQUEST', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
 
   /requests/{id}:
     parameters:
@@ -418,7 +418,7 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '409': { description: 'REQUEST_LOCKED (already opened or not pending)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: 'REQUEST_LOCKED (already opened or not pending), WINDOW_OUTSIDE_SLOT, TIME_TAKEN', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
 
   /requests/{id}/status:
     parameters:
@@ -443,7 +443,7 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '409': { description: 'INVALID_TRANSITION, SLOT_FULL, MEETING_STARTED', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: 'INVALID_TRANSITION, SLOT_FULL, TIME_TAKEN (confirming would overlap another confirmed student), MEETING_STARTED', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
 
   # =================================================================== S2 FAQ
   /faqs:
@@ -813,6 +813,14 @@ components:
         isFull: { type: boolean }
         status: { type: string, enum: [active, cancelled] }
         clashesWithSchedule: { type: boolean, description: Students only; true = overlaps a lecture/lab }
+        takenWindows:
+          type: array
+          description: Times already confirmed for other students (no names); new requests cannot overlap them
+          items:
+            type: object
+            properties:
+              start: { type: string, example: '16:00' }
+              end: { type: string, example: '16:20' }
 
     SlotResponse:
       type: object
@@ -878,7 +886,7 @@ components:
       properties:
         id: { type: string, format: uuid }
         requestId: { type: string, format: uuid }
-        position: { type: integer }
+        position: { type: integer, description: Place in the line; the line is ordered by the booked start time }
         status: { type: string, enum: [waiting, in_meeting, done, skipped] }
         student: { $ref: '#/components/schemas/PersonRef' }
         title: { type: string }

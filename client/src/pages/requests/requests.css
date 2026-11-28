@@ -184,6 +184,11 @@
 }
 .time-chip:hover { border-color: var(--ink); background: var(--butter-soft); }
 .time-chip[aria-pressed='true'] { background: var(--burgundy); border-color: var(--burgundy); color: var(--butter); }
+.time-chip.is-booked,
+.time-chip.is-booked:hover {
+  cursor: not-allowed; color: var(--ink-muted); text-decoration: line-through; text-decoration-color: var(--burgundy);
+  border-style: dashed; background: repeating-linear-gradient(135deg, var(--white) 0 6px, rgba(89, 10, 28, 0.08) 6px 12px);
+}
 .segmented { display: inline-flex; flex-wrap: wrap; border: var(--line); border-radius: var(--wobble-sm); overflow: hidden; justify-self: start; background: var(--white); }
 .segmented button { min-height: 42px; padding: 0.45rem 1.1rem; font-weight: 600; background: none; border: 0; border-right: 1.5px solid rgba(89, 10, 28, 0.2); cursor: pointer; transition: background 0.15s; }
 .segmented button:last-child { border-right: 0; }
@@ -192,6 +197,15 @@
 .segmented button:disabled { opacity: 0.35; cursor: not-allowed; }
 .slot-bar { position: relative; height: 16px; border: 1.5px solid var(--ink); border-radius: 999px; background: repeating-linear-gradient(90deg, var(--white) 0 10px, var(--paper) 10px 20px); overflow: hidden; }
 .slot-bar-window { position: absolute; top: 0; bottom: 0; background: var(--blue); border-left: 2px solid var(--ink); border-right: 2px solid var(--ink); transition: left 0.25s var(--ease), width 0.25s var(--ease); }
+.slot-bar-booked {
+  position: absolute; top: 0; bottom: 0;
+  background: repeating-linear-gradient(135deg, var(--burgundy) 0 4px, rgba(89, 10, 28, 0.35) 4px 8px);
+  animation: booked-in 0.4s var(--ease) both;
+}
+@keyframes booked-in { from { opacity: 0; transform: scaleY(0.3); } }
+.slot-booked-note { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem; font-size: 0.85rem; color: var(--ink-muted); }
+.slot-booked-swatch { width: 22px; height: 10px; border: 1.5px solid var(--ink); border-radius: 999px; background: repeating-linear-gradient(135deg, var(--burgundy) 0 3px, rgba(89, 10, 28, 0.35) 3px 6px); }
+@media (prefers-reduced-motion: reduce) { .slot-bar-booked { animation: none; } }
 .slot-bar-labels { display: flex; justify-content: space-between; margin-top: 0.4rem; font-size: 0.85rem; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
 .slot-bar-labels strong { color: var(--ink); }
 

@@ -22,12 +22,14 @@ const TITLE = `Jest S2 test ${Date.now()}`; // unique, so we can find "our" requ
 
 let judy; // the test student (TEST_STUDENT_ID, default 241339)
 let moheeb; // student 248690 (only used for "not your request")
+let other; // a second student who asks for an overlapping time (248690, or 241339 if 248690 is the test student)
 let sara; // instructor I-1001, teaches modules 1 and 2
 let omar; // instructor I-1002, teaches modules 3 and 4
 
-let slot; // a bookable slot of Dr Sara, picked in beforeAll
+let slot; // a fresh slot of Dr Sara, created in beforeAll and deleted in afterAll
 let faqId; // the FAQ created by the tests
 let requestId; // the request created by the tests
+let otherRequestId; // the second student's overlapping request
 
 // "10:00" + 15 -> "10:15"
 const addMinutes = (time, minutes) => {
@@ -46,15 +48,23 @@ async function login(universityId, password = PASSWORD) {
 }
 
 beforeAll(async () => {
-  [judy, moheeb, sara, omar] = await Promise.all([login(STUDENT_ID, STUDENT_PASSWORD), login('248690'), login('I-1001'), login('I-1002')]);
+  const otherId = STUDENT_ID === '248690' ? '241339' : '248690';
+  [judy, moheeb, sara, omar, other] = await Promise.all([
+    login(STUDENT_ID, STUDENT_PASSWORD), login('248690'), login('I-1001'), login('I-1002'), login(otherId),
+  ]);
 
-  // Pick one of Dr Sara's future slots that student 241339 can book: not full, not today, no active request of hers yet
-  const today = new Date().toLocaleDateString('en-CA');
-  const slots = await request(API).get('/slots?instructorId=I-1001&limit=100').set('Authorization', judy);
-  const mine = await request(API).get('/requests?limit=100').set('Authorization', judy);
-  const busy = mine.body.data.filter((r) => ['pending', 'confirmed'].includes(r.status)).map((r) => r.slot.id);
-  slot = slots.body.data.find((s) => !s.isFull && s.status === 'active' && s.slotDate > today && !busy.includes(s.id));
-  if (!slot) throw new Error(`No bookable slot of I-1001 found for ${STUDENT_ID}. Re-run supabase/seed.sql to get fresh slots.`);
+  // Dr Sara creates a fresh slot just for these tests, so they never depend on the seed or on manual testing:
+  // the next weekday at least 3 days ahead, 19:00-20:00, open to all her modules (both students can book it).
+  // A weekend, a holiday or a leftover slot from an earlier run (409) -> try the next day.
+  const day = new Date();
+  day.setDate(day.getDate() + 3);
+  for (let tries = 0; tries < 14 && !slot; tries += 1, day.setDate(day.getDate() + 1)) {
+    if (day.getDay() === 5 || day.getDay() === 6) continue; // Friday, Saturday
+    const res = await request(API).post('/slots').set('Authorization', sara)
+      .send({ slotDate: day.toLocaleDateString('en-CA'), startTime: '19:00', endTime: '20:00', location: 'Jest S2 Room', capacity: 5 });
+    if (res.status === 201) slot = res.body.data;
+  }
+  if (!slot) throw new Error('Could not create a test slot for I-1001 in the next two weeks (is the server running?)');
 });
 
 afterAll(async () => {
@@ -63,7 +73,16 @@ afterAll(async () => {
     await request(API).patch(`/requests/${requestId}/status`).set('Authorization', judy)
       .send({ status: 'cancelled', reason: 'Jest cleanup' });
   }
+  if (otherRequestId) {
+    await request(API).patch(`/requests/${otherRequestId}/status`).set('Authorization', other)
+      .send({ status: 'cancelled', reason: 'Jest cleanup' });
+  }
   if (faqId) await request(API).delete(`/faqs/${faqId}`).set('Authorization', sara);
+  // The test slot: deleted once its requests are cancelled (cancelled instead if something is still active)
+  if (slot) {
+    const del = await request(API).delete(`/slots/${slot.id}`).set('Authorization', sara);
+    if (del.status !== 204) await request(API).patch(`/slots/${slot.id}`).set('Authorization', sara).send({ status: 'cancelled' });
+  }
 });
 
 // ======================================================================= FAQ
@@ -232,10 +251,40 @@ describe('Requests (submit, edit lock, confirm, cancel)', () => {
     expect(res.body.error.details[0].field).toBe('reason');
   });
 
+  test('S2-43 a second student asks for an overlapping time while both are pending -> 201', async () => {
+    const res = await request(API).post('/requests').set('Authorization', other)
+      .send({ ...body(), preferredStart: addMinutes(slot.startTime, 15), preferredEnd: addMinutes(slot.startTime, 25) });
+    expect(res.status).toBe(201);
+    otherRequestId = res.body.data.id;
+  });
+
   test('S2-25 instructor confirms -> 200 confirmed', async () => {
     const res = await request(API).patch(`/requests/${requestId}/status`).set('Authorization', sara).send({ status: 'confirmed' });
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('confirmed');
+  });
+
+  test('S2-44 confirming the overlapping request -> 409 TIME_TAKEN', async () => {
+    const res = await request(API).patch(`/requests/${otherRequestId}/status`).set('Authorization', sara).send({ status: 'confirmed' });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('TIME_TAKEN');
+  });
+
+  test('S2-45 the slot shows the confirmed time as taken, without names', async () => {
+    const res = await request(API).get(`/slots/${slot.id}`).set('Authorization', other);
+    expect(res.status).toBe(200);
+    expect(res.body.data.takenWindows).toContainEqual({ start: addMinutes(slot.startTime, 10), end: addMinutes(slot.startTime, 20) });
+    expect(JSON.stringify(res.body.data.takenWindows)).not.toMatch(/Judy|Moheeb|24\d{4}/);
+  });
+
+  test('S2-46 moving the second request onto the taken time -> 409 TIME_TAKEN, right after it -> 200', async () => {
+    const clash = await request(API).patch(`/requests/${otherRequestId}`).set('Authorization', other)
+      .send({ preferredStart: addMinutes(slot.startTime, 5), preferredEnd: addMinutes(slot.startTime, 15) });
+    expect(clash.status).toBe(409);
+    expect(clash.body.error.code).toBe('TIME_TAKEN');
+    const after = await request(API).patch(`/requests/${otherRequestId}`).set('Authorization', other)
+      .send({ preferredStart: addMinutes(slot.startTime, 20), preferredEnd: addMinutes(slot.startTime, 30) });
+    expect(after.status).toBe(200);
   });
 
   test('S2-26 confirm it again -> 409 INVALID_TRANSITION', async () => {
@@ -352,6 +401,13 @@ describe('Cleanup (cancel the request, delete the FAQ)', () => {
     expect(res.body.data.status).toBe('cancelled');
     expect(res.body.data.cancelledBy).toBe('student');
     requestId = null; // nothing left to clean up
+  });
+
+  test('S2-47 the second student cancels their request -> 200', async () => {
+    const res = await request(API).patch(`/requests/${otherRequestId}/status`).set('Authorization', other)
+      .send({ status: 'cancelled', reason: 'Jest test finished' });
+    expect(res.status).toBe(200);
+    otherRequestId = null;
   });
 
   test('S2-41 another instructor deletes the FAQ -> 403', async () => {

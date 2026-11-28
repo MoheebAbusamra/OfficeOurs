@@ -93,11 +93,11 @@ export async function findRequestById(id) {
   return data;
 }
 
-// The confirmed requests of these slots (only slot_id, to count the taken seats per slot)
+// The confirmed requests of these slots (slot_id to count the taken seats, the times to block overlaps)
 export async function findConfirmedRequests(slotIds) {
   const { data, error } = await supabase
     .from('requests')
-    .select('slot_id')
+    .select('id, slot_id, preferred_start, preferred_end')
     .eq('status', 'confirmed')
     .in('slot_id', slotIds);
   if (error) throw error;

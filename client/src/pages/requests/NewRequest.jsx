@@ -11,7 +11,7 @@ import Alert from '@/components/Alert';
 import CountedField from './CountedField';
 import ThinkingStudent from './ThinkingStudent';
 import TimeWindowPicker from './TimeWindowPicker';
-import { fitDuration, prettyDate, todayIso, toMin, toTime } from './time';
+import { firstFreeStart, fitDuration, prettyDate, takenOf, todayIso, toMin, toTime } from './time';
 import './requests.css';
 
 const STEPS = ['Question', 'AI check', 'Time', 'Review'];
@@ -26,7 +26,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 const blockedReason = s => (!s ? null
   : s.status !== 'active' ? 'This slot was cancelled.'
     : s.slotDate < todayIso() ? 'This slot is in the past.'
-      : s.isFull ? 'This slot is full.' : null);
+      : s.isFull ? 'This slot is full.'
+        : !firstFreeStart(s) ? 'Every time in this slot is already booked.' : null);
 
 // ---------- Progress bar: 1 Question, 2 AI check, 3 Time, 4 Review ----------
 function Stepper({ step, reached, onGo }) {
@@ -102,7 +103,11 @@ export default function NewRequest() {
   useEffect(() => {
     if (!slotId) return;
     getSlot(slotId)
-      .then(res => { setSlot(res.data); setForm(f => ({ ...f, start: res.data.startTime.slice(0, 5) })); })
+      .then(res => {
+        setSlot(res.data);
+        const start = firstFreeStart(res.data) || res.data.startTime.slice(0, 5); // skip times already booked
+        setForm(f => ({ ...f, start, duration: fitDuration(res.data.endTime, start, f.duration, takenOf(res.data)) }));
+      })
       .catch(() => setSlotMissing(true))
       .finally(() => setLoadingSlot(false));
   }, [slotId]);
@@ -146,7 +151,7 @@ export default function NewRequest() {
 
   // ----- Step 3: keep the window inside the slot -----
   const setStart = start => {
-    setForm({ ...form, start, duration: fitDuration(slot.endTime, start, form.duration) });
+    setForm({ ...form, start, duration: fitDuration(slot.endTime, start, form.duration, takenOf(slot)) });
     setErrors({ ...errors, window: '' });
   };
 
@@ -169,6 +174,12 @@ export default function NewRequest() {
       setView('sent');
     } catch (err) {
       if (err.code === 'WINDOW_OUTSIDE_SLOT') { setErrors({ window: err.message }); goTo(2); }
+      else if (err.code === 'TIME_TAKEN') {
+        // Someone was confirmed for that time a moment ago: reload the booked times and send the student back to pick
+        setErrors({ window: err.message });
+        goTo(2);
+        getSlot(slotId).then(res => setSlot(res.data)).catch(() => {});
+      }
       else if (err.code === 'VALIDATION_ERROR') {
         const fieldErrors = Object.fromEntries((err.details || []).map(d => [d.field, d.issue]));
         setErrors(fieldErrors);
