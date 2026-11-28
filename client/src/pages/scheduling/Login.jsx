@@ -7,8 +7,6 @@ import AuthLayout from '@/components/AuthLayout';
 import Alert from '@/components/Alert';
 import PasswordInput from '@/components/PasswordInput';
 
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true';
-
 export default function Login() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
@@ -74,9 +72,6 @@ export default function Login() {
         </form>
 
         <p className="auth-switch">First time here? <Link to="/register">Activate your account</Link></p>
-        {USE_MOCKS && (
-          <p className="demo hint">Demo mode: try <strong>241339</strong> (student) or <strong>I-1001</strong> (instructor) with any 8+ character password.</p>
-        )}
       </div>
     </AuthLayout>
   );

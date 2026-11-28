@@ -1,6 +1,6 @@
 // Puts the frontend on Floci:
 //   1. find the app's API Gateway address
-//   2. build the React app against it (mocks off, # links, relative file paths)
+//   2. build the React app against it (# links, relative file paths)
 //   3. create the S3 web bucket, allow public reads of its files (bucket policy)
 //   4. replace the old files with the new build (each file with the right Content-Type)
 // Run alone from the server folder: npm run deploy:web   (deploy-floci.mjs also calls it)
@@ -40,7 +40,7 @@ function buildFrontend(apiBase) {
     cwd: CLIENT_DIR,
     stdio: 'inherit',
     shell: true, // needed on Windows to run npm
-    env: { ...process.env, VITE_API_URL: apiBase, VITE_USE_MOCKS: 'false', VITE_ROUTER: 'hash', VITE_BASE: './' },
+    env: { ...process.env, VITE_API_URL: apiBase, VITE_ROUTER: 'hash', VITE_BASE: './' },
   });
   if (result.status !== 0) throw new Error('the frontend build failed (see the lines above)');
   step('Frontend built', 'client/dist');

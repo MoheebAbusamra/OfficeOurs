@@ -221,7 +221,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .auth-card { width: 100%; max-width: 420px; }
 .auth-card h2 { margin-bottom: 0.35rem; }
 .auth-switch { margin-top: 1.25rem; text-align: center; }
-.demo { margin-top: 1rem; font-size: 0.85rem; }
 
 /* ---------- Placeholder (pages not built yet) ---------- */
 .todo { border: 2px dashed var(--burgundy); border-radius: var(--wobble); padding: 2.5rem 1.5rem; text-align: center; background: rgba(255, 255, 255, 0.6); }
