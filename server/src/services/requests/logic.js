@@ -140,6 +140,34 @@ function queueEntryOf(row) {
   return entry || null;
 }
 
+// Now on the campus clock as "2026-11-28 14:05:03", comparable with "<slot_date> <preferred_end>"
+const nowOnCampus = () => new Date().toLocaleString('sv-SE', { timeZone: process.env.APP_TIMEZONE || 'Africa/Cairo' });
+
+// Confirmed, its end time has passed, and the student never got called in (skipped counts as absent).
+// A checked-in student may still be waiting for a late instructor, so they keep their place until the slot day is over.
+function isNoShow(row, now) {
+  const entry = queueEntryOf(row);
+  const dayOver = row.slots.slot_date < now.slice(0, 10);
+  return row.status === 'confirmed' && `${row.slots.slot_date} ${row.preferred_end}` < now
+    && (!entry || (['waiting', 'skipped'].includes(entry.status) && (!entry.checked_in_at || dayOver)));
+}
+
+const NO_SHOW_REASON = 'No-show: the meeting time passed without a check-in';
+
+// Marks no-shows (request -> cancelled with the no-show reason, queue entry -> skipped) in the database and in these rows
+async function applyNoShows(rows) {
+  const now = nowOnCampus();
+  const missed = rows.filter((row) => isNoShow(row, now));
+  await db.markNoShows(missed.map((row) => row.id), NO_SHOW_REASON);
+  for (const row of missed) {
+    row.status = 'cancelled';
+    row.status_reason = NO_SHOW_REASON;
+    const entry = queueEntryOf(row);
+    if (entry) entry.status = 'skipped';
+  }
+  return rows;
+}
+
 // The slot inside a request, in the same shape as the Slot schema in openapi.yaml
 function toSlotShape(slot, confirmedCount) {
   return {
@@ -209,6 +237,7 @@ async function findVisibleRequest(user, id) {
   if (!isOwner && !isSlotInstructor) {
     throw new AppError(403, 'FORBIDDEN', 'This request is not yours');
   }
+  await applyNoShows([row]);
   return row;
 }
 
@@ -244,10 +273,9 @@ export async function listRequests(user, query) {
   const page = Number(query.page || 1);
   const limit = Number(query.limit || 20);
 
-  // 1. The database does the simple filters
+  // 1. The database does the simple filters (status is checked after the no-show update, which can change it)
   const filters = {
     slotId: query.slotId,
-    status: query.status,
     priority: query.priority,
     unopened: query.unopened === 'true',
   };
@@ -257,9 +285,10 @@ export async function listRequests(user, query) {
     filters.slotIds = await db.findSlotIdsOfInstructor(user.universityId);
     if (filters.slotIds.length === 0) return { data: [], meta: { page, limit, total: 0 } };
   }
-  let rows = await db.findRequests(filters); // newest first
+  let rows = await applyNoShows(await db.findRequests(filters)); // newest first
 
-  // 2. Module and search text are checked here (they live in joined tables)
+  // 2. Status, module and search text are checked here (module and search live in joined tables)
+  if (query.status) rows = rows.filter((row) => row.status === query.status);
   if (query.moduleId) {
     rows = rows.filter((row) => row.slots.module_id === Number(query.moduleId));
   }

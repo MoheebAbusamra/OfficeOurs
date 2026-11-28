@@ -60,7 +60,7 @@ const REQUEST_COLUMNS = `
   slots!requests_slot_id_fkey(id, instructor_id, module_id, slot_date, start_time, end_time, location, capacity, status,
         university_registry!slots_instructor_id_fkey(university_id, full_name),
         modules(id, code, name)),
-  queue_entries!queue_entries_request_id_fkey(id, status)
+  queue_entries!queue_entries_request_id_fkey(id, status, checked_in_at)
 `;
 
 // Ids of all slots of one instructor (to find the requests of their inbox)
@@ -123,6 +123,18 @@ export async function updateRequest(id, changes, expected = {}) {
   const { data, error } = await query.select(REQUEST_COLUMNS).maybeSingle();
   if (error) throw error;
   return data;
+}
+
+// Confirmed requests the student never showed up for -> cancelled (reason = no-show), their queue place -> skipped
+export async function markNoShows(requestIds, reason) {
+  if (requestIds.length === 0) return;
+  const { error } = await supabase.from('requests').update({ status: 'cancelled', status_reason: reason })
+    .in('id', requestIds).eq('status', 'confirmed');
+  if (error) throw error;
+  const { error: queueError } = await supabase.from('queue_entries')
+    .update({ status: 'skipped', finished_at: new Date().toISOString() })
+    .in('request_id', requestIds).eq('status', 'waiting');
+  if (queueError) throw queueError;
 }
 
 // ------------------------------------------------------------------ Notifications (#3)
