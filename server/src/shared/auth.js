@@ -35,10 +35,10 @@ export async function requireAuth(req, res, next) {
   next();
 }
 
-// Put this after requireAuth to allow only one role, e.g. requireRole('instructor')
-export function requireRole(role) {
+// Put this after requireAuth to allow only the given roles, e.g. requireRole('instructor') or requireRole('student', 'instructor')
+export function requireRole(...roles) {
   return (req, res, next) => {
-    if (req.user.role !== role) throw new AppError(403, 'FORBIDDEN', `Only ${role}s can do this`);
+    if (!roles.includes(req.user.role)) throw new AppError(403, 'FORBIDDEN', `Only ${roles.join(' and ')}s can do this`);
     next();
   };
 }
