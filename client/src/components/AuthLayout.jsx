@@ -38,13 +38,7 @@ export default function AuthLayout({ children }) {
           <p className="lead">
             Book a slot that fits your timetable, get your answer from the FAQ first,
             and walk in with a QR ticket when it is{' '}
-            <span className="ink-under">
-              your turn
-              <svg viewBox="0 0 160 22" preserveAspectRatio="none" aria-hidden="true">
-                <path d="M3 13 C 30 6, 58 17, 84 10 S 136 5, 157 11" />
-                <path d="M14 19 C 44 14, 92 20, 148 15" />
-              </svg>
-            </span>.
+            <strong className="turn">your turn</strong>.
           </p>
         </div>
 
